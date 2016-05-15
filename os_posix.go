@@ -26,7 +26,7 @@ func get_executable_filename() string {
 		cwd, _ := os.Getwd()
 		path = filepath.Join(cwd, path)
 	}
-	if file_exists(path) {
+	if fileExists(path) {
 		return path
 	}
 	// Fallback : use "gocode" and assume we are in the PATH...
@@ -35,14 +35,4 @@ func get_executable_filename() string {
 		return path
 	}
 	return ""
-}
-
-// config location
-
-func config_dir() string {
-	return filepath.Join(xdg_home_dir(), "gocode")
-}
-
-func config_file() string {
-	return filepath.Join(xdg_home_dir(), "gocode", "config.json")
 }

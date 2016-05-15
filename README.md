@@ -22,13 +22,13 @@ Also watch the [demo screencast](http://nosmileface.ru/images/gocode-demo.swf).
 
     `export PATH=$PATH:$GOPATH/bin`
 
- 2. Then you need to get the appropriate version of the gocode, for 6g/8g/5g compiler you can do this:
+ 2. Then you need to install gocode:
 
-    `go get -u github.com/nsf/gocode` (-u flag for "update")
+    `go get -u github.com/mdempsky/gocode` (-u flag for "update")
 
     Windows users should consider doing this instead:
 
-    `go get -u -ldflags -H=windowsgui github.com/nsf/gocode`
+    `go get -u -ldflags -H=windowsgui github.com/mdempsky/gocode`
 
     That way on the Windows OS gocode will be built as a GUI application and doing so solves hanging window issues with some of the editors.
 
@@ -78,7 +78,7 @@ In order to install vim scripts, you need to fulfill the following steps:
 
 Add the following line to your **.vimrc**:
 
-`Plugin 'nsf/gocode', {'rtp': 'vim/'}`
+`Plugin 'mdempsky/gocode', {'rtp': 'vim/'}`
 
 And then update your packages by running `:PluginInstall`.
 
@@ -86,7 +86,7 @@ And then update your packages by running `:PluginInstall`.
 
 Add the following line to your **.vimrc**:
 
-`Plug 'nsf/gocode', { 'rtp': 'vim', 'do': '~/.vim/plugged/gocode/vim/symlink.sh' }`
+`Plug 'mdempsky/gocode', { 'rtp': 'vim', 'do': '~/.vim/plugged/gocode/vim/symlink.sh' }`
 
 And then update your packages by running `:PlugInstall`.
 
@@ -103,7 +103,7 @@ Alternatively take a look at the vundle/pathogen friendly repo: https://github.c
 
 Add the following line to your **init.vim**:
 
-`Plugin 'nsf/gocode', {'rtp': 'nvim/'}`
+`Plugin 'mdempsky/gocode', {'rtp': 'nvim/'}`
 
 And then update your packages by running `:PluginInstall`.
 
@@ -111,7 +111,7 @@ And then update your packages by running `:PluginInstall`.
 
 Add the following line to your **init.vim**:
 
-`Plug 'nsf/gocode', { 'rtp': 'nvim', 'do': '~/.config/nvim/plugged/gocode/nvim/symlink.sh' }`
+`Plug 'mdempsky/gocode', { 'rtp': 'nvim', 'do': '~/.config/nvim/plugged/gocode/nvim/symlink.sh' }`
 
 And then update your packages by running `:PlugInstall`.
 
@@ -139,45 +139,15 @@ If you're a MacOSX user, you may find that script useful: https://github.com/pur
   (exec-path-from-shell-copy-env "GOPATH"))
 ```
 
-### Options
-
-You can change all available options using `gocode set` command. The config file uses json format and is usually stored somewhere in **~/.config/gocode** directory. On windows it's stored in the appropriate AppData folder. It's suggested to avoid modifying config file manually, do that using the `gocode set` command.
-
-`gocode set` lists all options and their values.
-
-`gocode set <option>` shows the value of that *option*.
-
-`gocode set <option> <value>` sets the new *value* for that *option*.
-
- - *propose-builtins*
-
-   A boolean option. If **true**, gocode will add built-in types, functions and constants to an autocompletion proposals. Default: **false**.
-
- - *lib-path*
-
-   A string option. Allows you to add search paths for packages. By default, gocode only searches **$GOPATH/pkg/$GOOS_$GOARCH** and **$GOROOT/pkg/$GOOS_$GOARCH** in terms of previously existed environment variables. Also you can specify multiple paths using ':' (colon) as a separator (on Windows use semicolon ';'). The paths specified by *lib-path* are prepended to the default ones.
-
- - *autobuild*
-
-   A boolean option. If **true**, gocode will try to automatically build out-of-date packages when their source files are modified, in order to obtain the freshest autocomplete results for them. This feature is experimental. Default: **false**.
-
- - *force-debug-output*
-
-   A string option. If is not empty, gocode will forcefully redirect the logging into that file. Also forces enabling of the debug mode on the server side. Default: "" (empty).
-
- - *package-lookup-mode*
-
-   A string option. If **go**, use standard Go package lookup rules. If **gb**, use gb-specific lookup rules. See https://github.com/constabulary/gb for details. Default: **go**.
-
 ### Debugging
 
 If something went wrong, the first thing you may want to do is manually start the gocode daemon with a debug mode enabled and in a separate terminal window. It will show you all the stack traces, panics if any and additional info about autocompletion requests. Shutdown the daemon if it was already started and run a new one explicitly with a debug mode enabled:
 
-`gocode close`
+`gocode exit`
 
 `gocode -s -debug`
 
-Please, report bugs, feature suggestions and other rants to the [github issue tracker](http://github.com/nsf/gocode/issues) of this project.
+Please, report bugs, feature suggestions and other rants to the [github issue tracker](http://github.com/mdempsky/gocode/issues) of this project.
 
 ### Developing
 

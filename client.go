@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"go/build"
@@ -10,18 +11,20 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/mdempsky/gocode/suggest"
 )
 
-func do_client() int {
+func doClient() int {
 	addr := *g_addr
 	if *g_sock == "unix" {
-		addr = get_socket_filename()
+		addr = getSocketPath()
 	}
 
 	// client
 	client, err := rpc.Dial(*g_sock, addr)
 	if err != nil {
-		if *g_sock == "unix" && file_exists(addr) {
+		if *g_sock == "unix" && fileExists(addr) {
 			os.Remove(addr)
 		}
 
@@ -42,14 +45,10 @@ func do_client() int {
 		switch flag.Arg(0) {
 		case "autocomplete":
 			cmd_auto_complete(client)
-		case "close":
-			cmd_close(client)
-		case "status":
-			cmd_status(client)
-		case "drop-cache":
-			cmd_drop_cache(client)
-		case "set":
-			cmd_set(client)
+		case "close", "exit":
+			cmd_exit(client)
+		default:
+			fmt.Printf("gocode: unknown subcommand: %q\nRun 'gocode -help' for usage.\n", flag.Arg(0))
 		}
 	}
 	return 0
@@ -112,12 +111,7 @@ func prepare_file_filename_cursor() ([]byte, string, int) {
 		panic(err.Error())
 	}
 
-	var skipped int
-	file, skipped = filter_out_shebang(file)
-
 	filename := *g_input
-	cursor := -1
-
 	offset := ""
 	switch flag.NArg() {
 	case 2:
@@ -127,53 +121,50 @@ func prepare_file_filename_cursor() ([]byte, string, int) {
 		offset = flag.Arg(2)
 	}
 
+	if filename != "" {
+		filename, _ = filepath.Abs(filename)
+	}
+
+	cursor := -1
 	if offset != "" {
 		if offset[0] == 'c' || offset[0] == 'C' {
 			cursor, _ = strconv.Atoi(offset[1:])
-			cursor = char_to_byte_offset(file, cursor)
+			cursor = runeToByteOffset(file, cursor)
 		} else {
 			cursor, _ = strconv.Atoi(offset)
 		}
 	}
 
-	cursor -= skipped
-	if filename != "" && !filepath.IsAbs(filename) {
-		cwd, _ := os.Getwd()
-		filename = filepath.Join(cwd, filename)
-	}
-	return file, filename, cursor
+	trimmed := trimShebang(file)
+	cursor -= len(file) - len(trimmed)
+	return trimmed, filename, cursor
 }
 
-//-------------------------------------------------------------------------
-// commands
-//-------------------------------------------------------------------------
-
-func cmd_status(c *rpc.Client) {
-	fmt.Printf("%s\n", client_status(c, 0))
-}
+// Commands
 
 func cmd_auto_complete(c *rpc.Client) {
-	context := pack_build_context(&build.Default)
+	context := packContext(&build.Default)
 	file, filename, cursor := prepare_file_filename_cursor()
-	f := get_formatter(*g_format)
-	f.write_candidates(client_auto_complete(c, file, filename, cursor, context))
-}
-
-func cmd_close(c *rpc.Client) {
-	client_close(c, 0)
-}
-
-func cmd_drop_cache(c *rpc.Client) {
-	client_drop_cache(c, 0)
-}
-
-func cmd_set(c *rpc.Client) {
-	switch flag.NArg() {
-	case 1:
-		fmt.Print(client_set(c, "\x00", "\x00"))
-	case 2:
-		fmt.Print(client_set(c, flag.Arg(1), "\x00"))
-	case 3:
-		fmt.Print(client_set(c, flag.Arg(1), flag.Arg(2)))
+	fmt := suggest.Formatters[*g_format]
+	if fmt == nil {
+		fmt = suggest.NiceFormat
 	}
+	candidates, len := client_auto_complete(c, file, filename, cursor, context)
+	fmt(os.Stdout, candidates, len)
+}
+
+func cmd_exit(c *rpc.Client) {
+	client_exit(c, 0)
+}
+
+// returns truncated 'data' and amount of bytes skipped (for cursor pos adjustment)
+func trimShebang(data []byte) []byte {
+	if !bytes.HasPrefix(data, []byte("#!")) {
+		return data
+	}
+	nl := bytes.IndexByte(data, '\n')
+	if nl < 0 {
+		return nil
+	}
+	return data[nl+1:]
 }
