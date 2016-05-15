@@ -3,15 +3,12 @@
 package main
 
 import (
-	"flag"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
-func create_sock_flag(name, desc string) *string {
-	return flag.String(name, "unix", desc)
-}
+const defaultSocketType = "unix"
 
 // Full path of the current executable
 func get_executable_filename() string {

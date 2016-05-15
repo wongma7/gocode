@@ -8,17 +8,13 @@ import (
 	"unsafe"
 )
 
+const defaultSocketType = "tcp"
+
 var (
 	kernel32 = syscall.NewLazyDLL("kernel32.dll")
-)
 
-var (
 	proc_get_module_file_name = kernel32.NewProc("GetModuleFileNameW")
 )
-
-func create_sock_flag(name, desc string) *string {
-	return flag.String(name, "tcp", desc)
-}
 
 // Full path of the current executable
 func get_executable_filename() string {
