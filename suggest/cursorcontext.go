@@ -12,7 +12,6 @@ type token_iterator struct {
 }
 
 type token_item struct {
-	off int
 	tok token.Token
 	lit string
 }
@@ -24,28 +23,30 @@ func (i token_item) literal() string {
 	return i.tok.String()
 }
 
-func new_token_iterator(src []byte, cursor int) token_iterator {
-	tokens := make([]token_item, 0, 1000)
-	var s scanner.Scanner
+func new_token_iterator(src []byte, cursor int) (token_iterator, int) {
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(src))
+	cursorPos := file.Pos(cursor)
+
+	var s scanner.Scanner
 	s.Init(file, src, nil, 0)
+	tokens := make([]token_item, 0, 1000)
+	lastPos := token.NoPos
 	for {
 		pos, tok, lit := s.Scan()
-		off := fset.Position(pos).Offset
-		if tok == token.EOF || cursor <= off {
+		if tok == token.EOF || pos >= cursorPos {
 			break
 		}
 		tokens = append(tokens, token_item{
-			off: off,
 			tok: tok,
 			lit: lit,
 		})
+		lastPos = pos
 	}
 	return token_iterator{
 		tokens:      tokens,
 		token_index: len(tokens) - 1,
-	}
+	}, int(cursorPos - lastPos)
 }
 
 func (this *token_iterator) token() token_item {
@@ -230,7 +231,7 @@ const (
 )
 
 func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, string, string) {
-	iter := new_token_iterator(file, cursor)
+	iter, off := new_token_iterator(file, cursor)
 	if len(iter.tokens) == 0 {
 		return unknownContext, "", ""
 	}
@@ -239,7 +240,6 @@ func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, strin
 	if tok := iter.token(); tok.tok == token.STRING {
 		// Make sure cursor is inside the string.
 		path := tok.literal()
-		off := cursor - tok.off
 		if off >= len(path) {
 			return unknownContext, "", ""
 		}
@@ -285,10 +285,6 @@ func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, strin
 
 		partial = tok.literal()
 		if tok.tok == token.IDENT {
-			// Calculate the offset of the cursor position within the identifier.
-			// For instance, if we are 'ab#c', we want partial_len = 2 and partial = ab.
-			off := cursor - tok.off
-
 			// If it happens that the cursor is past the end of the literal,
 			// means there is a space between the literal and the cursor, think
 			// of it as no context, because that's what it really is.
