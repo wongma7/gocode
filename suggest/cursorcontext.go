@@ -111,8 +111,19 @@ func (ti *tokenIterator) extractStructType() (res string) {
 	if !ti.skipToLeftCurly() {
 		return ""
 	}
+	origPos := ti.pos
 	if !ti.prev() {
 		return ""
+	}
+	if ti.token().tok == token.RBRACE {
+		ti.skipToBalancedPair()
+		if !ti.prev() {
+			return ""
+		}
+		if ti.token().tok != token.STRUCT {
+			return ""
+		}
+		return joinTokens(ti.tokens[ti.pos:origPos])
 	}
 	if ti.token().tok != token.IDENT {
 		return ""
@@ -215,8 +226,11 @@ loop:
 // expression.
 func joinTokens(tokens []tokenItem) string {
 	var buf bytes.Buffer
-	for _, t := range tokens {
-		buf.WriteString(t.String())
+	for i, tok := range tokens {
+		if i > 0 {
+			buf.WriteByte(' ')
+		}
+		buf.WriteString(tok.String())
 	}
 	return buf.String()
 }
