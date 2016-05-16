@@ -20,10 +20,8 @@ type token_item struct {
 func (i token_item) literal() string {
 	if i.tok.IsLiteral() {
 		return i.lit
-	} else {
-		return i.tok.String()
 	}
-	return ""
+	return i.tok.String()
 }
 
 func new_token_iterator(src []byte, cursor int) token_iterator {
@@ -109,11 +107,6 @@ func (this *token_iterator) skip_to_left_curly() bool {
 // can apply special filtering for autocompletion results.
 // Sadly, this doesn't cover anonymous structs.
 func (ti *token_iterator) extract_struct_type() (res string) {
-	defer func() {
-		if res != "" {
-			// fmt.Println("Extracted struct type:", res)
-		}
-	}()
 	if !ti.skip_to_left_curly() {
 		return ""
 	}
@@ -242,92 +235,83 @@ func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, strin
 		return unknownContext, "", ""
 	}
 
-	// figure out what is just before the cursor
-	switch tok := iter.token(); tok.tok {
-	case token.STRING:
-		// make sure cursor is inside the string
-		s := tok.literal()
-		if len(s) > 1 && s[len(s)-1] == '"' && tok.off+len(s) <= cursor {
+	// Figure out what is just before the cursor.
+	if tok := iter.token(); tok.tok == token.STRING {
+		// Make sure cursor is inside the string.
+		path := tok.literal()
+		off := cursor - tok.off
+		if off >= len(path) {
 			return unknownContext, "", ""
 		}
-		// now figure out if inside an import declaration
-		var ptok = token.STRING
-		for iter.go_back() {
-			itok := iter.token().tok
-			switch itok {
-			case token.STRING:
-				switch ptok {
-				case token.SEMICOLON, token.IDENT, token.PERIOD:
-				default:
-					return unknownContext, "", ""
-				}
-			case token.LPAREN, token.SEMICOLON:
-				switch ptok {
-				case token.STRING, token.IDENT, token.PERIOD:
-				default:
-					return unknownContext, "", ""
-				}
-			case token.IDENT, token.PERIOD:
-				switch ptok {
-				case token.STRING:
-				default:
-					return unknownContext, "", ""
-				}
-			case token.IMPORT:
-				switch ptok {
-				case token.STRING, token.IDENT, token.PERIOD, token.LPAREN:
-					path_len := cursor - tok.off
-					path := s[1:path_len]
-					return importContext, "", path
-				default:
-					return unknownContext, "", ""
-				}
-			default:
-				return unknownContext, "", ""
+
+		// Now figure out if inside an import declaration.
+		for {
+			if !iter.go_back() {
+				break
 			}
-			ptok = itok
+			if itok := iter.token().tok; itok == token.IDENT || itok == token.PERIOD {
+				if !iter.go_back() {
+					break
+				}
+			}
+			if iter.token().tok == token.SEMICOLON {
+				if !iter.go_back() {
+					break
+				}
+				if iter.token().tok != token.STRING {
+					break
+				}
+				continue
+			}
+			if iter.token().tok == token.LPAREN {
+				if !iter.go_back() {
+					break
+				}
+			}
+			if iter.token().tok != token.IMPORT {
+				break
+			}
+			return importContext, "", path[1:off]
 		}
-	case token.PERIOD:
-		// we're '<whatever>.'
-		// figure out decl, Partial is ""
-		return selectContext, iter.extract_go_expr(), ""
+		return unknownContext, "", ""
+	}
+
+	// See if we have a partial identifier to work with.
+	var partial string
+	switch tok := iter.token(); tok.tok {
 	case token.IDENT, token.TYPE, token.CONST, token.VAR, token.FUNC, token.PACKAGE:
 		// we're '<whatever>.<ident>'
 		// parse <ident> as Partial and figure out decl
-		var partial string
+
+		partial = tok.literal()
 		if tok.tok == token.IDENT {
 			// Calculate the offset of the cursor position within the identifier.
 			// For instance, if we are 'ab#c', we want partial_len = 2 and partial = ab.
-			partial_len := cursor - tok.off
+			off := cursor - tok.off
 
 			// If it happens that the cursor is past the end of the literal,
 			// means there is a space between the literal and the cursor, think
 			// of it as no context, because that's what it really is.
-			if partial_len > len(tok.literal()) {
+			if off > len(tok.literal()) {
 				return unknownContext, "", ""
 			}
-			partial = tok.literal()[0:partial_len]
-		} else {
-			// Do not try to truncate if it is not an identifier.
-			partial = tok.literal()
+			partial = partial[:off]
 		}
 
-		iter.go_back()
-		switch iter.token().tok {
-		case token.PERIOD:
-			return selectContext, iter.extract_go_expr(), partial
-		case token.COMMA, token.LBRACE:
-			// This can happen for struct fields:
-			// &Struct{Hello: 1, Wor#} // (# - the cursor)
-			// Let's try to find the struct type
-			return compositeLiteralContext, iter.extract_struct_type(), partial
-		default:
+		if !iter.go_back() {
 			return unknownContext, "", partial
 		}
-	case token.COMMA, token.LBRACE:
-		// Try to parse the current expression as a structure initialization.
-		return compositeLiteralContext, iter.extract_struct_type(), ""
 	}
 
-	return unknownContext, "", ""
+	switch iter.token().tok {
+	case token.PERIOD:
+		return selectContext, iter.extract_go_expr(), partial
+	case token.COMMA, token.LBRACE:
+		// This can happen for struct fields:
+		// &Struct{Hello: 1, Wor#} // (# - the cursor)
+		// Let's try to find the struct type
+		return compositeLiteralContext, iter.extract_struct_type(), partial
+	}
+
+	return unknownContext, "", partial
 }
