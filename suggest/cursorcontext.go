@@ -6,58 +6,58 @@ import (
 	"go/token"
 )
 
-type token_iterator struct {
-	tokens      []token_item
-	token_index int
+type tokenIterator struct {
+	tokens []tokenItem
+	pos    int
 }
 
-type token_item struct {
+type tokenItem struct {
 	tok token.Token
 	lit string
 }
 
-func (i token_item) literal() string {
+func (i tokenItem) String() string {
 	if i.tok.IsLiteral() {
 		return i.lit
 	}
 	return i.tok.String()
 }
 
-func new_token_iterator(src []byte, cursor int) (token_iterator, int) {
+func newTokenIterator(src []byte, cursor int) (tokenIterator, int) {
 	fset := token.NewFileSet()
 	file := fset.AddFile("", fset.Base(), len(src))
 	cursorPos := file.Pos(cursor)
 
 	var s scanner.Scanner
 	s.Init(file, src, nil, 0)
-	tokens := make([]token_item, 0, 1000)
+	tokens := make([]tokenItem, 0, 1000)
 	lastPos := token.NoPos
 	for {
 		pos, tok, lit := s.Scan()
 		if tok == token.EOF || pos >= cursorPos {
 			break
 		}
-		tokens = append(tokens, token_item{
+		tokens = append(tokens, tokenItem{
 			tok: tok,
 			lit: lit,
 		})
 		lastPos = pos
 	}
-	return token_iterator{
-		tokens:      tokens,
-		token_index: len(tokens) - 1,
+	return tokenIterator{
+		tokens: tokens,
+		pos:    len(tokens) - 1,
 	}, int(cursorPos - lastPos)
 }
 
-func (this *token_iterator) token() token_item {
-	return this.tokens[this.token_index]
+func (ti *tokenIterator) token() tokenItem {
+	return ti.tokens[ti.pos]
 }
 
-func (this *token_iterator) go_back() bool {
-	if this.token_index <= 0 {
+func (ti *tokenIterator) prev() bool {
+	if ti.pos <= 0 {
 		return false
 	}
-	this.token_index--
+	ti.pos--
 	return true
 }
 
@@ -67,13 +67,13 @@ var bracket_pairs_map = map[token.Token]token.Token{
 	token.RBRACE: token.LBRACE,
 }
 
-func (ti *token_iterator) skip_to_left(left, right token.Token) bool {
+func (ti *tokenIterator) skipToLeft(left, right token.Token) bool {
 	if ti.token().tok == left {
 		return true
 	}
 	balance := 1
 	for balance != 0 {
-		if !ti.go_back() {
+		if !ti.prev() {
 			return false
 		}
 		switch ti.token().tok {
@@ -88,16 +88,16 @@ func (ti *token_iterator) skip_to_left(left, right token.Token) bool {
 
 // when the cursor is at the ')' or ']' or '}', move the cursor to an opposite
 // bracket pair, this functions takes nested bracket pairs into account
-func (this *token_iterator) skip_to_balanced_pair() bool {
-	right := this.token().tok
+func (ti *tokenIterator) skipToBalancedPair() bool {
+	right := ti.token().tok
 	left := bracket_pairs_map[right]
-	return this.skip_to_left(left, right)
+	return ti.skipToLeft(left, right)
 }
 
 // Move the cursor to the open brace of the current block, taking nested blocks
 // into account.
-func (this *token_iterator) skip_to_left_curly() bool {
-	return this.skip_to_left(token.LBRACE, token.RBRACE)
+func (ti *tokenIterator) skipToLeftCurly() bool {
+	return ti.skipToLeft(token.LBRACE, token.RBRACE)
 }
 
 // Extract the type expression right before the enclosing curly bracket block.
@@ -107,30 +107,30 @@ func (this *token_iterator) skip_to_left_curly() bool {
 // The idea is that we check if this type expression is a type and it is, we
 // can apply special filtering for autocompletion results.
 // Sadly, this doesn't cover anonymous structs.
-func (ti *token_iterator) extract_struct_type() (res string) {
-	if !ti.skip_to_left_curly() {
+func (ti *tokenIterator) extractStructType() (res string) {
+	if !ti.skipToLeftCurly() {
 		return ""
 	}
-	if !ti.go_back() {
+	if !ti.prev() {
 		return ""
 	}
 	if ti.token().tok != token.IDENT {
 		return ""
 	}
-	b := ti.token().literal()
-	if !ti.go_back() {
+	b := ti.token().String()
+	if !ti.prev() {
 		return b
 	}
 	if ti.token().tok != token.PERIOD {
 		return b
 	}
-	if !ti.go_back() {
+	if !ti.prev() {
 		return b
 	}
 	if ti.token().tok != token.IDENT {
 		return b
 	}
-	return ti.token().literal() + "." + b
+	return ti.token().String() + "." + b
 }
 
 // Starting from the token under the cursor move back and extract something
@@ -159,19 +159,19 @@ func (ti *token_iterator) extract_struct_type() (res string) {
 //   ident()
 // Of course there are also slightly more complicated rules for brackets:
 //   ident{}.ident()[5][4](), etc.
-func (this *token_iterator) extract_go_expr() string {
-	orig := this.token_index
+func (ti *tokenIterator) extractExpr() string {
+	orig := ti.pos
 
 	// Contains the type of the previously scanned token (initialized with
 	// the token right under the cursor). This is the token to the *right* of
 	// the current one.
-	prev := this.token().tok
+	prev := ti.token().tok
 loop:
 	for {
-		if !this.go_back() {
-			return token_items_to_string(this.tokens[:orig])
+		if !ti.prev() {
+			return joinTokens(ti.tokens[:orig])
 		}
-		switch this.token().tok {
+		switch ti.token().tok {
 		case token.PERIOD:
 			// If the '.' is not followed by IDENT, it's invalid.
 			if prev != token.IDENT {
@@ -192,7 +192,7 @@ loop:
 			if prev != token.PERIOD {
 				break loop
 			}
-			this.skip_to_balanced_pair()
+			ti.skipToBalancedPair()
 		case token.RPAREN, token.RBRACK:
 			// After ']' and ')' their opening counterparts are valid '[', '(',
 			// as well as the dot.
@@ -202,21 +202,21 @@ loop:
 			default:
 				break loop
 			}
-			this.skip_to_balanced_pair()
+			ti.skipToBalancedPair()
 		default:
 			break loop
 		}
-		prev = this.token().tok
+		prev = ti.token().tok
 	}
-	return token_items_to_string(this.tokens[this.token_index+1 : orig])
+	return joinTokens(ti.tokens[ti.pos+1 : orig])
 }
 
 // Given a slice of token_item, reassembles them into the original literal
 // expression.
-func token_items_to_string(tokens []token_item) string {
+func joinTokens(tokens []tokenItem) string {
 	var buf bytes.Buffer
 	for _, t := range tokens {
-		buf.WriteString(t.literal())
+		buf.WriteString(t.String())
 	}
 	return buf.String()
 }
@@ -231,7 +231,7 @@ const (
 )
 
 func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, string, string) {
-	iter, off := new_token_iterator(file, cursor)
+	iter, off := newTokenIterator(file, cursor)
 	if len(iter.tokens) == 0 {
 		return unknownContext, "", ""
 	}
@@ -239,23 +239,23 @@ func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, strin
 	// Figure out what is just before the cursor.
 	if tok := iter.token(); tok.tok == token.STRING {
 		// Make sure cursor is inside the string.
-		path := tok.literal()
+		path := tok.String()
 		if off >= len(path) {
 			return unknownContext, "", ""
 		}
 
 		// Now figure out if inside an import declaration.
 		for {
-			if !iter.go_back() {
+			if !iter.prev() {
 				break
 			}
 			if itok := iter.token().tok; itok == token.IDENT || itok == token.PERIOD {
-				if !iter.go_back() {
+				if !iter.prev() {
 					break
 				}
 			}
 			if iter.token().tok == token.SEMICOLON {
-				if !iter.go_back() {
+				if !iter.prev() {
 					break
 				}
 				if iter.token().tok != token.STRING {
@@ -264,7 +264,7 @@ func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, strin
 				continue
 			}
 			if iter.token().tok == token.LPAREN {
-				if !iter.go_back() {
+				if !iter.prev() {
 					break
 				}
 			}
@@ -283,30 +283,30 @@ func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, strin
 		// we're '<whatever>.<ident>'
 		// parse <ident> as Partial and figure out decl
 
-		partial = tok.literal()
+		partial = tok.String()
 		if tok.tok == token.IDENT {
 			// If it happens that the cursor is past the end of the literal,
 			// means there is a space between the literal and the cursor, think
 			// of it as no context, because that's what it really is.
-			if off > len(tok.literal()) {
+			if off > len(tok.String()) {
 				return unknownContext, "", ""
 			}
 			partial = partial[:off]
 		}
 
-		if !iter.go_back() {
+		if !iter.prev() {
 			return unknownContext, "", partial
 		}
 	}
 
 	switch iter.token().tok {
 	case token.PERIOD:
-		return selectContext, iter.extract_go_expr(), partial
+		return selectContext, iter.extractExpr(), partial
 	case token.COMMA, token.LBRACE:
 		// This can happen for struct fields:
 		// &Struct{Hello: 1, Wor#} // (# - the cursor)
 		// Let's try to find the struct type
-		return compositeLiteralContext, iter.extract_struct_type(), partial
+		return compositeLiteralContext, iter.extractStructType(), partial
 	}
 
 	return unknownContext, "", partial
