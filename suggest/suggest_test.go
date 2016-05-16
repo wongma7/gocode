@@ -6,21 +6,16 @@ import (
 	"go/build"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/mdempsky/gocode/suggest"
 )
 
-var flagTestDirs = flag.String("testdatadirs", "", "testdata subdirs")
-
 func TestRegress(t *testing.T) {
 	s := suggest.New(testing.Verbose(), &build.Default)
 
-	var testDirs []string
-	if *flagTestDirs != "" {
-		testDirs = strings.Split(*flagTestDirs, ",")
-	} else {
+	testDirs := flag.Args()
+	if len(testDirs) == 0 {
 		var err error
 		testDirs, err = filepath.Glob("testdata/test.*")
 		if err != nil {
@@ -29,8 +24,8 @@ func TestRegress(t *testing.T) {
 	}
 
 	failed := 0
-	for i, testDir := range testDirs {
-		if !testRegress(t, s, i, testDir) {
+	for _, testDir := range testDirs {
+		if !testRegress(t, s, testDir) {
 			failed++
 		}
 	}
@@ -39,7 +34,7 @@ func TestRegress(t *testing.T) {
 	}
 }
 
-func testRegress(t *testing.T, s *suggest.Suggester, num int, testDir string) bool {
+func testRegress(t *testing.T, s *suggest.Suggester, testDir string) bool {
 	testDir, err := filepath.Abs(testDir)
 	if err != nil {
 		t.Errorf("Abs failed: %v", err)
