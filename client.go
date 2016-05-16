@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"go/build"
 	"io/ioutil"
+	"log"
 	"net/rpc"
 	"os"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 	"github.com/mdempsky/gocode/suggest"
 )
 
-func doClient() int {
+func doClient() {
 	addr := *g_addr
 	if *g_sock == "unix" {
 		addr = getSocketPath()
@@ -28,15 +29,13 @@ func doClient() int {
 			os.Remove(addr)
 		}
 
-		err = try_run_server()
+		err = tryStartServer()
 		if err != nil {
-			fmt.Printf("%s\n", err.Error())
-			return 1
+			log.Fatal(err)
 		}
-		client, err = try_to_connect(*g_sock, addr)
+		client, err = tryToConnect(*g_sock, addr)
 		if err != nil {
-			fmt.Printf("%s\n", err.Error())
-			return 1
+			log.Fatal(err)
 		}
 	}
 	defer client.Close()
@@ -44,17 +43,16 @@ func doClient() int {
 	if flag.NArg() > 0 {
 		switch flag.Arg(0) {
 		case "autocomplete":
-			cmd_auto_complete(client)
+			cmdAutoComplete(client)
 		case "close", "exit":
-			cmd_exit(client)
+			cmdExit(client)
 		default:
 			fmt.Printf("gocode: unknown subcommand: %q\nRun 'gocode -help' for usage.\n", flag.Arg(0))
 		}
 	}
-	return 0
 }
 
-func try_run_server() error {
+func tryStartServer() error {
 	path := get_executable_filename()
 	args := []string{os.Args[0], "-s", "-sock", *g_sock, "-addr", *g_addr}
 	cwd, _ := os.Getwd()
@@ -82,22 +80,43 @@ func try_run_server() error {
 	return p.Release()
 }
 
-func try_to_connect(network, address string) (client *rpc.Client, err error) {
-	t := 0
+func tryToConnect(network, address string) (*rpc.Client, error) {
+	start := time.Now()
 	for {
-		client, err = rpc.Dial(network, address)
-		if err != nil && t < 1000 {
-			time.Sleep(10 * time.Millisecond)
-			t += 10
+		client, err := rpc.Dial(network, address)
+		if err != nil && time.Since(start) < time.Second {
 			continue
 		}
-		break
+		return client, err
 	}
-
-	return
 }
 
-func prepare_file_filename_cursor() ([]byte, string, int) {
+func cmdAutoComplete(c *rpc.Client) {
+	var req AutoCompleteRequest
+	req.Filename, req.Data, req.Cursor = prepareFilenameDataCursor()
+	req.Context = packContext(&build.Default)
+
+	var res AutoCompleteReply
+	if err := c.Call("Server.AutoComplete", &req, &res); err != nil {
+		panic(err)
+	}
+
+	fmt := suggest.Formatters[*g_format]
+	if fmt == nil {
+		fmt = suggest.NiceFormat
+	}
+	fmt(os.Stdout, res.Candidates, res.Len)
+}
+
+func cmdExit(c *rpc.Client) {
+	var req ExitRequest
+	var res ExitReply
+	if err := c.Call("Server.Exit", &req, &res); err != nil {
+		panic(err)
+	}
+}
+
+func prepareFilenameDataCursor() (string, []byte, int) {
 	var file []byte
 	var err error
 
@@ -135,36 +154,20 @@ func prepare_file_filename_cursor() ([]byte, string, int) {
 		}
 	}
 
-	trimmed := trimShebang(file)
+	trimmed := trimShebangLine(file)
 	cursor -= len(file) - len(trimmed)
-	return trimmed, filename, cursor
+	return filename, trimmed, cursor
 }
 
-// Commands
-
-func cmd_auto_complete(c *rpc.Client) {
-	context := packContext(&build.Default)
-	file, filename, cursor := prepare_file_filename_cursor()
-	fmt := suggest.Formatters[*g_format]
-	if fmt == nil {
-		fmt = suggest.NiceFormat
+// trimShebangLine returns s without the leading shebang line ("#!"
+// directive), if any.
+func trimShebangLine(s []byte) []byte {
+	if !bytes.HasPrefix(s, []byte("#!")) {
+		return s
 	}
-	candidates, len := client_auto_complete(c, file, filename, cursor, context)
-	fmt(os.Stdout, candidates, len)
-}
-
-func cmd_exit(c *rpc.Client) {
-	client_exit(c, 0)
-}
-
-// returns truncated 'data' and amount of bytes skipped (for cursor pos adjustment)
-func trimShebang(data []byte) []byte {
-	if !bytes.HasPrefix(data, []byte("#!")) {
-		return data
-	}
-	nl := bytes.IndexByte(data, '\n')
+	nl := bytes.IndexByte(s, '\n')
 	if nl < 0 {
 		return nil
 	}
-	return data[nl+1:]
+	return s[nl+1:]
 }

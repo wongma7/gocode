@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/build"
 	"log"
 	"net"
 	"net/rpc"
@@ -33,52 +32,51 @@ func doServer() {
 		defer os.Remove(addr)
 	}
 
-	g_daemon = newDaemon()
-	rpc.Register(new(RPC))
+	rpc.Register(&Server{})
 	rpc.Accept(lis)
 }
 
-func newDaemon() *daemon {
-	d := new(daemon)
-	d.suggester = suggest.New(*g_debug, &d.context)
-	return d
+type Server struct {
 }
 
-type daemon struct {
-	context   build.Context
-	suggester *suggest.Suggester
+type AutoCompleteRequest struct {
+	Filename string
+	Data     []byte
+	Cursor   int
+	Context  PackedContext
 }
 
-var g_daemon *daemon
+type AutoCompleteReply struct {
+	Candidates []suggest.Candidate
+	Len        int
+}
 
-func server_auto_complete(file []byte, filename string, cursor int, context_packed packedContext) (c []suggest.Candidate, d int) {
-	fmt.Printf("server_auto_complete call\n")
-
-	g_daemon.context = unpackContext(&context_packed)
+func (s *Server) AutoComplete(req *AutoCompleteRequest, res *AutoCompleteReply) error {
+	context := unpackContext(&req.Context)
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Printf("panic: %s\n\n", err)
 			debug.PrintStack()
 
-			c = []suggest.Candidate{
+			res.Candidates = []suggest.Candidate{
 				{Class: "PANIC", Name: "PANIC", Type: "PANIC"},
 			}
 		}
 	}()
 	if *g_debug {
 		var buf bytes.Buffer
-		log.Printf("Got autocompletion request for '%s'\n", filename)
-		log.Printf("Cursor at: %d\n", cursor)
+		log.Printf("Got autocompletion request for '%s'\n", req.Filename)
+		log.Printf("Cursor at: %d\n", req.Cursor)
 		buf.WriteString("-------------------------------------------------------\n")
-		buf.Write(file[:cursor])
+		buf.Write(req.Data[:req.Cursor])
 		buf.WriteString("#")
-		buf.Write(file[cursor:])
+		buf.Write(req.Data[req.Cursor:])
 		log.Print(buf.String())
 		log.Println("-------------------------------------------------------")
 	}
-	candidates, d := g_daemon.suggester.Suggest(file, filename, cursor)
+	candidates, d := suggest.New(*g_debug, &context).Suggest(req.Filename, req.Data, req.Cursor)
 	if *g_debug {
-		log.Printf("Offset: %d\n", d)
+		log.Printf("Offset: %d\n", res.Len)
 		log.Printf("Number of candidates found: %d\n", len(candidates))
 		log.Printf("Candidates are:\n")
 		for _, c := range candidates {
@@ -86,13 +84,17 @@ func server_auto_complete(file []byte, filename string, cursor int, context_pack
 		}
 		log.Println("=======================================================")
 	}
-	return candidates, d
+	res.Candidates, res.Len = candidates, d
+	return nil
 }
 
-func server_exit(notused int) int {
+type ExitRequest struct{}
+type ExitReply struct{}
+
+func (s *Server) Exit(req *ExitRequest, res *ExitReply) error {
 	go func() {
 		time.Sleep(time.Second)
 		os.Exit(0)
 	}()
-	return 0
+	return nil
 }

@@ -24,7 +24,7 @@ func runeToByteOffset(s []byte, offset_c int) (offset_b int) {
 }
 
 // copy of the build.Context without func fields
-type packedContext struct {
+type PackedContext struct {
 	GOARCH        string
 	GOOS          string
 	GOROOT        string
@@ -37,8 +37,8 @@ type packedContext struct {
 	InstallSuffix string
 }
 
-func packContext(ctx *build.Context) packedContext {
-	return packedContext{
+func packContext(ctx *build.Context) PackedContext {
+	return PackedContext{
 		GOARCH:        ctx.GOARCH,
 		GOOS:          ctx.GOOS,
 		GOROOT:        ctx.GOROOT,
@@ -52,7 +52,7 @@ func packContext(ctx *build.Context) packedContext {
 	}
 }
 
-func unpackContext(ctx *packedContext) build.Context {
+func unpackContext(ctx *PackedContext) build.Context {
 	return build.Context{
 		GOARCH:        ctx.GOARCH,
 		GOOS:          ctx.GOOS,

@@ -47,20 +47,20 @@ func testRegress(t *testing.T, s *suggest.Suggester, num int, testDir string) bo
 	}
 
 	filename := filepath.Join(testDir, "test.go.in")
-	file, err := ioutil.ReadFile(filename)
+	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		t.Errorf("ReadFile failed: %v", err)
 		return false
 	}
 
-	cursor := bytes.IndexByte(file, '@')
+	cursor := bytes.IndexByte(data, '@')
 	if cursor < 0 {
 		t.Errorf("Missing @")
 		return false
 	}
-	file = append(file[:cursor], file[cursor+1:]...)
+	data = append(data[:cursor], data[cursor+1:]...)
 
-	candidates, prefixLen := s.Suggest(file, filename, cursor)
+	candidates, prefixLen := s.Suggest(filename, data, cursor)
 
 	var out bytes.Buffer
 	suggest.NiceFormat(&out, candidates, prefixLen)

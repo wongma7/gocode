@@ -31,15 +31,15 @@ func New(debug bool, context *build.Context) *Suggester {
 
 // Suggest returns a list of suggestion candidates and the length of
 // the text that should be replaced, if any.
-func (c *Suggester) Suggest(file []byte, filename string, cursor int) ([]Candidate, int) {
+func (c *Suggester) Suggest(filename string, data []byte, cursor int) ([]Candidate, int) {
 	if cursor < 0 {
 		return nil, 0
 	}
 
-	fset, pos, pkg := c.analyzePackage(filename, file, cursor)
+	fset, pos, pkg := c.analyzePackage(filename, data, cursor)
 	scope := pkg.Scope().Innermost(pos)
 
-	ctx, expr, partial := deduce_cursor_context_helper(file, cursor)
+	ctx, expr, partial := deduce_cursor_context_helper(data, cursor)
 	b := candidateCollector{
 		localpkg: pkg,
 		partial:  partial,
@@ -138,11 +138,11 @@ func get_import_candidates_dir(root, partial string, b *candidateCollector) {
 	}
 }
 
-func (c *Suggester) analyzePackage(filename string, file []byte, cursor int) (*token.FileSet, token.Pos, *types.Package) {
+func (c *Suggester) analyzePackage(filename string, data []byte, cursor int) (*token.FileSet, token.Pos, *types.Package) {
 	// If we're in trailing white space at the end of a scope,
 	// sometimes go/types doesn't recognize that variables should
 	// still be in scope there.
-	filesemi := bytes.Join([][]byte{file[:cursor], []byte(";"), file[cursor:]}, nil)
+	filesemi := bytes.Join([][]byte{data[:cursor], []byte(";"), data[cursor:]}, nil)
 
 	fset := token.NewFileSet()
 	fileAST, err := parser.ParseFile(fset, filename, filesemi, parser.AllErrors)
