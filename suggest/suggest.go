@@ -14,7 +14,9 @@ import (
 	"log"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"unsafe"
 )
 
 type Suggester struct {
@@ -163,9 +165,36 @@ func (c *Suggester) analyzePackage(filename string, data []byte, cursor int) (*t
 	var cfg types.Config
 	cfg.Importer = importer.Default()
 	cfg.Error = func(err error) {}
-	pkg, _ := cfg.Check("", fset, append(otherASTs, fileAST), nil)
+	var info types.Info
+	info.Scopes = make(map[ast.Node]*types.Scope)
+	pkg, _ := cfg.Check("", fset, append(otherASTs, fileAST), &info)
+
+	// Workaround golang.org/issue/15686.
+	for node, scope := range info.Scopes {
+		switch node := node.(type) {
+		case *ast.RangeStmt:
+			for _, name := range scope.Names() {
+				setScopePos(scope.Lookup(name).(*types.Var), node.X.End())
+			}
+		}
+	}
 
 	return fset, pos, pkg
+}
+
+var varScopePosOffset = func() uintptr {
+	sf, ok := reflect.TypeOf((*types.Var)(nil)).Elem().FieldByName("scopePos_")
+	if !ok {
+		log.Fatal("types.Var has no field scopePos_")
+	}
+	if sf.Type != reflect.TypeOf(token.NoPos) {
+		log.Fatalf("types.Var.scopePos_ has type %v, not token.Pos", sf.Type)
+	}
+	return sf.Offset
+}()
+
+func setScopePos(v *types.Var, pos token.Pos) {
+	*(*token.Pos)(unsafe.Pointer(uintptr(unsafe.Pointer(v)) + varScopePosOffset)) = pos
 }
 
 func (c *Suggester) fieldNameCandidates(typ types.Type, b *candidateCollector) {
