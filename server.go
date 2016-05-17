@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/rpc"
 	"os"
+	"os/signal"
 	"runtime/debug"
 	"time"
 
@@ -17,23 +18,31 @@ func doServer() {
 	addr := *g_addr
 	if *g_sock == "unix" {
 		addr = getSocketPath()
-		if fileExists(addr) {
-			log.Printf("unix socket: '%s' already exists\n", addr)
-		}
 	}
 
 	lis, err := net.Listen(*g_sock, addr)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	if *g_sock == "unix" {
-		// cleanup unix socket file
-		defer os.Remove(addr)
-	}
+	sigs := make(chan os.Signal)
+	signal.Notify(sigs, os.Interrupt)
+	go func() {
+		<-sigs
+		exitServer()
+	}()
 
-	rpc.Register(&Server{})
+	if err = rpc.Register(&Server{}); err != nil {
+		log.Fatal(err)
+	}
 	rpc.Accept(lis)
+}
+
+func exitServer() {
+	if *g_sock == "unix" {
+		_ = os.Remove(getSocketPath())
+	}
+	os.Exit(0)
 }
 
 type Server struct {
@@ -94,7 +103,7 @@ type ExitReply struct{}
 func (s *Server) Exit(req *ExitRequest, res *ExitReply) error {
 	go func() {
 		time.Sleep(time.Second)
-		os.Exit(0)
+		exitServer()
 	}()
 	return nil
 }
