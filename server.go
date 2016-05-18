@@ -83,8 +83,11 @@ func (s *Server) AutoComplete(req *AutoCompleteRequest, res *AutoCompleteReply) 
 		log.Print(buf.String())
 		log.Println("-------------------------------------------------------")
 	}
+	now := time.Now()
 	candidates, d := suggest.New(*g_debug, &context).Suggest(req.Filename, req.Data, req.Cursor)
+	elapsed := time.Since(now)
 	if *g_debug {
+		log.Printf("Elapsed duration: %v\n", elapsed)
 		log.Printf("Offset: %d\n", res.Len)
 		log.Printf("Number of candidates found: %d\n", len(candidates))
 		log.Printf("Candidates are:\n")
