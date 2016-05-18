@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"go/types"
 	"log"
 	"net"
 	"net/rpc"
@@ -11,6 +12,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/mdempsky/gocode/gbimporter"
 	"github.com/mdempsky/gocode/suggest"
 )
 
@@ -52,7 +54,7 @@ type AutoCompleteRequest struct {
 	Filename string
 	Data     []byte
 	Cursor   int
-	Context  PackedContext
+	Context  gbimporter.PackedContext
 }
 
 type AutoCompleteReply struct {
@@ -61,7 +63,6 @@ type AutoCompleteReply struct {
 }
 
 func (s *Server) AutoComplete(req *AutoCompleteRequest, res *AutoCompleteReply) error {
-	context := unpackContext(&req.Context)
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Printf("panic: %s\n\n", err)
@@ -84,7 +85,8 @@ func (s *Server) AutoComplete(req *AutoCompleteRequest, res *AutoCompleteReply) 
 		log.Println("-------------------------------------------------------")
 	}
 	now := time.Now()
-	candidates, d := suggest.New(*g_debug, &context).Suggest(req.Filename, req.Data, req.Cursor)
+	var imp types.Importer = gbimporter.New(&req.Context, req.Filename)
+	candidates, d := suggest.New(*g_debug).Suggest(imp, req.Filename, req.Data, req.Cursor)
 	elapsed := time.Since(now)
 	if *g_debug {
 		log.Printf("Elapsed duration: %v\n", elapsed)

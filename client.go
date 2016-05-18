@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/mdempsky/gocode/gbimporter"
 	"github.com/mdempsky/gocode/suggest"
 )
 
@@ -94,7 +95,7 @@ func tryToConnect(network, address string) (*rpc.Client, error) {
 func cmdAutoComplete(c *rpc.Client) {
 	var req AutoCompleteRequest
 	req.Filename, req.Data, req.Cursor = prepareFilenameDataCursor()
-	req.Context = packContext(&build.Default)
+	req.Context = gbimporter.PackContext(&build.Default)
 
 	var res AutoCompleteReply
 	if err := c.Call("Server.AutoComplete", &req, &res); err != nil {

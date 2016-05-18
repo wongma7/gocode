@@ -3,7 +3,7 @@ package suggest_test
 import (
 	"bytes"
 	"flag"
-	"go/build"
+	"go/importer"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
@@ -12,7 +12,7 @@ import (
 )
 
 func TestRegress(t *testing.T) {
-	s := suggest.New(testing.Verbose(), &build.Default)
+	s := suggest.New(testing.Verbose())
 
 	testDirs := flag.Args()
 	if len(testDirs) == 0 {
@@ -55,7 +55,7 @@ func testRegress(t *testing.T, s *suggest.Suggester, testDir string) bool {
 	}
 	data = append(data[:cursor], data[cursor+1:]...)
 
-	candidates, prefixLen := s.Suggest(filename, data, cursor)
+	candidates, prefixLen := s.Suggest(importer.Default(), filename, data, cursor)
 
 	var out bytes.Buffer
 	suggest.NiceFormat(&out, candidates, prefixLen)

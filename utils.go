@@ -1,7 +1,6 @@
 package main
 
 import (
-	"go/build"
 	"os"
 	"unicode/utf8"
 )
@@ -21,48 +20,4 @@ func runeToByteOffset(s []byte, offset_c int) (offset_b int) {
 		}
 	}
 	return offset_b
-}
-
-// copy of the build.Context without func fields
-type PackedContext struct {
-	GOARCH        string
-	GOOS          string
-	GOROOT        string
-	GOPATH        string
-	CgoEnabled    bool
-	UseAllFiles   bool
-	Compiler      string
-	BuildTags     []string
-	ReleaseTags   []string
-	InstallSuffix string
-}
-
-func packContext(ctx *build.Context) PackedContext {
-	return PackedContext{
-		GOARCH:        ctx.GOARCH,
-		GOOS:          ctx.GOOS,
-		GOROOT:        ctx.GOROOT,
-		GOPATH:        ctx.GOPATH,
-		CgoEnabled:    ctx.CgoEnabled,
-		UseAllFiles:   ctx.UseAllFiles,
-		Compiler:      ctx.Compiler,
-		BuildTags:     ctx.BuildTags,
-		ReleaseTags:   ctx.ReleaseTags,
-		InstallSuffix: ctx.InstallSuffix,
-	}
-}
-
-func unpackContext(ctx *PackedContext) build.Context {
-	return build.Context{
-		GOARCH:        ctx.GOARCH,
-		GOOS:          ctx.GOOS,
-		GOROOT:        ctx.GOROOT,
-		GOPATH:        ctx.GOPATH,
-		CgoEnabled:    ctx.CgoEnabled,
-		UseAllFiles:   ctx.UseAllFiles,
-		Compiler:      ctx.Compiler,
-		BuildTags:     ctx.BuildTags,
-		ReleaseTags:   ctx.ReleaseTags,
-		InstallSuffix: ctx.InstallSuffix,
-	}
 }
