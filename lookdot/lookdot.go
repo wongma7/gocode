@@ -32,10 +32,15 @@ func walk(typ0 types.Type, addable0, value bool, v Visitor) {
 	// ambiguous identifiers.
 	found := make(map[string]types.Object)
 
-	addObj := func(id string, obj types.Object) {
+	addObj := func(obj types.Object, valid bool) {
+		id := obj.Id()
 		switch otherObj, isPresent := found[id]; {
 		case !isPresent:
-			found[id] = obj
+			if valid {
+				found[id] = obj
+			} else {
+				found[id] = nil
+			}
 		case otherObj != nil:
 			// Ambiguous selector.
 			found[id] = nil
@@ -93,61 +98,38 @@ func walk(typ0 types.Type, addable0, value bool, v Visitor) {
 
 		// Look for methods declared on a named type.
 		{
-			typ := now.typ
-			addable := now.addable
-			ptr, isPtr := typ.(*types.Pointer)
-			if isPtr {
-				typ = ptr.Elem()
-				addable = true
+			typ, addable := chasePointer(now.typ)
+			if !addable {
+				addable = now.addable
 			}
-
-			if named, isNamed := typ.(*types.Named); isNamed {
-				visited[named] = true
-				for i, n := 0, named.NumMethods(); i < n; i++ {
-					m := types.Object(named.Method(i))
-					id := m.Id()
-					if !addable {
-						_, isPtrMethod := m.Type().(*types.Signature).Recv().Type().(*types.Pointer)
-						if isPtrMethod {
-							addObj(id, nil)
-							continue
-						}
-					}
-					addObj(id, m)
+			if typ, ok := typ.(*types.Named); ok {
+				visited[typ] = true
+				for i, n := 0, typ.NumMethods(); i < n; i++ {
+					m := typ.Method(i)
+					addObj(m, addable || !hasPtrRecv(m))
 				}
 			}
 		}
 
-		// Look for struct fields and interface methods.
-		{
-			typ := now.typ.Underlying()
-			addable := now.addable
-			ptr, isPtr := typ.(*types.Pointer)
-			if isPtr {
-				typ = ptr.Elem().Underlying()
-				addable = true
+		// Look for interface methods.
+		if typ, ok := now.typ.Underlying().(*types.Interface); ok {
+			for i, n := 0, typ.NumMethods(); i < n; i++ {
+				addObj(typ.Method(i), true)
 			}
+		}
 
-			switch typ := typ.(type) {
-			case *types.Interface:
-				if isPtr {
-					break
-				}
-				for i, n := 0, typ.NumMethods(); i < n; i++ {
-					m := typ.Method(i)
-					addObj(m.Id(), m)
-				}
-			case *types.Struct:
+		// Look for struct fields.
+		{
+			typ, addable := chasePointer(now.typ.Underlying())
+			if !addable {
+				addable = now.addable
+			}
+			if typ, ok := typ.Underlying().(*types.Struct); ok {
 				for i, n := 0, typ.NumFields(); i < n; i++ {
 					f := typ.Field(i)
+					addObj(f, value)
 					if f.Anonymous() {
 						next = append(next, todo{f.Type(), addable})
-					}
-					id := f.Id()
-					if value {
-						addObj(id, f)
-					} else {
-						addObj(id, nil)
 					}
 				}
 			}
@@ -163,4 +145,16 @@ func namedOf(typ types.Type) *types.Named {
 	}
 	res, _ := typ.(*types.Named)
 	return res
+}
+
+func hasPtrRecv(m *types.Func) bool {
+	_, ok := m.Type().(*types.Signature).Recv().Type().(*types.Pointer)
+	return ok
+}
+
+func chasePointer(typ types.Type) (types.Type, bool) {
+	if ptr, isPtr := typ.(*types.Pointer); isPtr {
+		return ptr.Elem(), true
+	}
+	return typ, false
 }

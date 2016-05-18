@@ -2,6 +2,7 @@ package lookdot_test
 
 import (
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -14,6 +15,8 @@ import (
 
 const src = `
 package p
+
+import "time"
 
 type S struct { x int; y int }
 func (S) Sv()
@@ -40,6 +43,12 @@ func (A1) A() int
 type A2 int
 func (A2) A() int
 type A struct { A1; A2; }
+
+type B1 int
+func (B1) b()
+type B2 struct { b int; B1 }
+
+var loc time.Location
 `
 
 var tests = [...]struct {
@@ -71,6 +80,10 @@ var tests = [...]struct {
 	{"X12", nil},
 
 	{"A", nil},
+
+	{"B2", nil},
+
+	{"loc", []string{"String"}},
 }
 
 func TestWalk(t *testing.T) {
@@ -81,6 +94,7 @@ func TestWalk(t *testing.T) {
 	}
 
 	var cfg types.Config
+	cfg.Importer = importer.Default()
 	pkg, err := cfg.Check("p", fset, []*ast.File{file}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -94,7 +108,15 @@ func TestWalk(t *testing.T) {
 		}
 
 		var got []string
-		if !lookdot.Walk(&tv, func(obj types.Object) { got = append(got, obj.Name()) }) {
+		visitor := func(obj types.Object) {
+			// TODO(mdempsky): Should Walk be responsible
+			// for filtering out inaccessible objects?
+			if obj.Exported() || obj.Pkg() == pkg {
+				got = append(got, obj.Name())
+			}
+		}
+
+		if !lookdot.Walk(&tv, visitor) {
 			t.Error("Walk(%q) returned false", test.lhs)
 			continue
 		}
