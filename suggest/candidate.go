@@ -152,13 +152,14 @@ func (b *candidateCollector) appendObject(obj types.Object) {
 		return
 	}
 
+	// TODO(mdempsky): Reconsider this functionality.
 	if b.filter != nil && !b.filter(obj) {
 		return
 	}
 
-	if strings.HasPrefix(obj.Name(), b.partial) {
+	if b.filter != nil || strings.HasPrefix(obj.Name(), b.partial) {
 		b.exact = append(b.exact, obj)
-	} else if strings.HasPrefix(strings.ToLower(obj.Name()), strings.ToLower(obj.Name())) {
+	} else if strings.HasPrefix(strings.ToLower(obj.Name()), strings.ToLower(b.partial)) {
 		b.badcase = append(b.badcase, obj)
 	}
 }
