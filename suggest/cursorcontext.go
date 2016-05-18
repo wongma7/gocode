@@ -106,8 +106,7 @@ func (ti *tokenIterator) skipToLeftCurly() bool {
 //   X{#}                           // returns X
 // The idea is that we check if this type expression is a type and it is, we
 // can apply special filtering for autocompletion results.
-// Sadly, this doesn't cover anonymous structs.
-func (ti *tokenIterator) extractStructType() (res string) {
+func (ti *tokenIterator) extractLiteralType() (res string) {
 	if !ti.skipToLeftCurly() {
 		return ""
 	}
@@ -263,7 +262,7 @@ const (
 	compositeLiteralContext
 )
 
-func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, string, string) {
+func deduceCursorContext(file []byte, cursor int) (cursorContext, string, string) {
 	iter, off := newTokenIterator(file, cursor)
 	if len(iter.tokens) == 0 {
 		return unknownContext, "", ""
@@ -299,7 +298,7 @@ func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, strin
 		// This can happen for struct fields:
 		// &Struct{Hello: 1, Wor#} // (# - the cursor)
 		// Let's try to find the struct type
-		return compositeLiteralContext, iter.extractStructType(), partial
+		return compositeLiteralContext, iter.extractLiteralType(), partial
 	}
 
 	return unknownContext, "", partial

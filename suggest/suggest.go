@@ -37,7 +37,7 @@ func (c *Suggester) Suggest(importer types.Importer, filename string, data []byt
 	fset, pos, pkg := c.analyzePackage(importer, filename, data, cursor)
 	scope := pkg.Scope().Innermost(pos)
 
-	ctx, expr, partial := deduce_cursor_context_helper(data, cursor)
+	ctx, expr, partial := deduceCursorContext(data, cursor)
 	b := candidateCollector{
 		localpkg: pkg,
 		partial:  partial,
