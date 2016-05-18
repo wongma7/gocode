@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/mdempsky/gocode.svg?branch=master)](https://travis-ci.org/mdempsky/gocode)
+
 ## An autocompletion daemon for the Go programming language
 
 Gocode is a helper tool which is intended to be integrated with your source code editor, like vim, neovim and emacs. It provides several advanced capabilities, which currently includes:
