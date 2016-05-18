@@ -61,6 +61,8 @@ func classifyObject(obj types.Object) string {
 		return "const"
 	case *types.Func:
 		return "func"
+	case *types.Nil:
+		return "const"
 	case *types.PkgName:
 		return "package"
 	case *types.TypeName:
@@ -112,11 +114,7 @@ func (b *candidateCollector) asCandidate(obj types.Object) Candidate {
 		typStr = "struct"
 	default:
 		if _, isBuiltin := obj.(*types.Builtin); isBuiltin {
-			if obj.Pkg().Path() == "unsafe" {
-				typStr = "func(any) uintptr"
-			} else {
-				panic("TODO: unhandled builtin")
-			}
+			typStr = builtinTypes[obj.Name()]
 		} else if t != nil {
 			typStr = types.TypeString(t, b.qualify)
 		}
@@ -127,6 +125,30 @@ func (b *candidateCollector) asCandidate(obj types.Object) Candidate {
 		Name:  obj.Name(),
 		Type:  typStr,
 	}
+}
+
+var builtinTypes = map[string]string{
+	// Universe.
+	"append":  "func(slice []Type, elems ..Type) []Type",
+	"cap":     "func(v Type) int",
+	"close":   "func(c chan<- Type)",
+	"complex": "func(real FloatType, imag FloatType) ComplexType",
+	"copy":    "func(dst []Type, src []Type) int",
+	"delete":  "func(m map[Key]Type, key Key)",
+	"imag":    "func(c ComplexType) FloatType",
+	"len":     "func(v Type) int",
+	"make":    "func(Type, size IntegerType) Type",
+	"new":     "func(Type) *Type",
+	"panic":   "func(v interface{})",
+	"print":   "func(args ...Type)",
+	"println": "func(args ...Type)",
+	"real":    "func(c ComplexType) FloatType",
+	"recover": "func() interface{}",
+
+	// Package unsafe.
+	"Alignof":  "func(x Type) uintptr",
+	"Sizeof":   "func(x Type) uintptr",
+	"Offsetof": "func(x Type) uintptr",
 }
 
 func (b *candidateCollector) qualify(pkg *types.Package) string {
@@ -140,12 +162,14 @@ func (b *candidateCollector) appendObject(obj types.Object) {
 	// TODO(mdempsky): Change this to true.
 	const proposeBuiltins = false
 
-	if !proposeBuiltins && obj.Pkg() == nil && obj.Name() != "Error" {
-		return
-	}
-
-	if obj.Pkg() != nil && obj.Pkg() != b.localpkg && !obj.Exported() {
-		return
+	if obj.Pkg() != b.localpkg {
+		if obj.Parent() == types.Universe {
+			if !proposeBuiltins {
+				return
+			}
+		} else if !obj.Exported() {
+			return
+		}
 	}
 
 	// TODO(mdempsky): Reconsider this functionality.
