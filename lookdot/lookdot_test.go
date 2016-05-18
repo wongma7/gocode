@@ -34,6 +34,12 @@ func (*X) x()
 type X1 struct { X }
 type X2 struct { *X }
 type X12 struct { X1; X2 }
+
+type A1 int
+func (A1) A() int
+type A2 int
+func (A2) A() int
+type A struct { A1; A2; }
 `
 
 var tests = [...]struct {
@@ -63,6 +69,8 @@ var tests = [...]struct {
 	{"X1", nil},
 	{"X2", []string{"x"}},
 	{"X12", nil},
+
+	{"A", nil},
 }
 
 func TestWalk(t *testing.T) {
