@@ -136,10 +136,6 @@ func (b *candidateCollector) qualify(pkg *types.Package) string {
 	return pkg.Name()
 }
 
-func (b *candidateCollector) appendImport(path string) {
-	b.candidates = append(b.candidates, Candidate{Class: "import", Name: path})
-}
-
 func (b *candidateCollector) appendObject(obj types.Object) {
 	// TODO(mdempsky): Change this to true.
 	const proposeBuiltins = false

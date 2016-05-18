@@ -259,7 +259,6 @@ type cursorContext int
 
 const (
 	unknownContext cursorContext = iota
-	importContext
 	selectContext
 	compositeLiteralContext
 )
@@ -267,46 +266,6 @@ const (
 func deduce_cursor_context_helper(file []byte, cursor int) (cursorContext, string, string) {
 	iter, off := newTokenIterator(file, cursor)
 	if len(iter.tokens) == 0 {
-		return unknownContext, "", ""
-	}
-
-	// Figure out what is just before the cursor.
-	if tok := iter.token(); tok.tok == token.STRING {
-		// Make sure cursor is inside the string.
-		path := tok.String()
-		if off >= len(path) {
-			return unknownContext, "", ""
-		}
-
-		// Now figure out if inside an import declaration.
-		for {
-			if !iter.prev() {
-				break
-			}
-			if itok := iter.token().tok; itok == token.IDENT || itok == token.PERIOD {
-				if !iter.prev() {
-					break
-				}
-			}
-			if iter.token().tok == token.SEMICOLON {
-				if !iter.prev() {
-					break
-				}
-				if iter.token().tok != token.STRING {
-					break
-				}
-				continue
-			}
-			if iter.token().tok == token.LPAREN {
-				if !iter.prev() {
-					break
-				}
-			}
-			if iter.token().tok != token.IMPORT {
-				break
-			}
-			return importContext, "", path[1:off]
-		}
 		return unknownContext, "", ""
 	}
 

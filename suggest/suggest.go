@@ -2,7 +2,6 @@ package suggest
 
 import (
 	"bytes"
-	"fmt"
 	"go/ast"
 	"go/build"
 	"go/importer"
@@ -12,7 +11,6 @@ import (
 	"go/types"
 	"io/ioutil"
 	"log"
-	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -51,9 +49,6 @@ func (c *Suggester) Suggest(filename string, data []byte, cursor int) ([]Candida
 	}
 
 	switch ctx {
-	case importContext:
-		c.getImportCandidates(partial, &b)
-
 	case selectContext:
 		tv, _ := types.Eval(fset, pkg, pos, expr)
 		if lookdot.Walk(&tv, b.appendObject) {
@@ -87,54 +82,6 @@ func (c *Suggester) Suggest(filename string, data []byte, cursor int) ([]Candida
 		return nil, 0
 	}
 	return res, len(partial)
-}
-
-// Safe to use in new code.
-func (c *Suggester) getImportCandidates(partial string, b *candidateCollector) {
-	pkgdir := fmt.Sprintf("%s_%s", c.context.GOOS, c.context.GOARCH)
-	srcdirs := c.context.SrcDirs()
-	for _, srcpath := range srcdirs {
-		// convert srcpath to pkgpath and get candidates
-		pkgpath := path.Join(path.Dir(filepath.ToSlash(srcpath)), "pkg", pkgdir)
-		get_import_candidates_dir(pkgpath, partial, b)
-	}
-}
-
-func get_import_candidates_dir(root, partial string, b *candidateCollector) {
-	var fpath string
-	var match bool
-	if strings.HasSuffix(partial, "/") {
-		fpath = path.Join(root, partial)
-	} else {
-		fpath = path.Join(root, path.Dir(partial))
-		match = true
-	}
-	fi, err := ioutil.ReadDir(fpath)
-	if err != nil {
-		panic(err)
-	}
-	for i := range fi {
-		name := fi[i].Name()
-		rel, err := filepath.Rel(root, path.Join(fpath, name))
-		if err != nil {
-			panic(err)
-		}
-		rel = filepath.ToSlash(rel)
-		// TODO(mdempsky): Case-insensitive import path matching?
-		if match && !strings.HasPrefix(rel, partial) {
-			continue
-		} else if fi[i].IsDir() {
-			get_import_candidates_dir(root, rel+"/", b)
-		} else {
-			ext := path.Ext(name)
-			if ext != ".a" {
-				continue
-			} else {
-				rel = rel[0 : len(rel)-2]
-			}
-			b.appendImport(rel)
-		}
-	}
 }
 
 func (c *Suggester) analyzePackage(filename string, data []byte, cursor int) (*token.FileSet, token.Pos, *types.Package) {
