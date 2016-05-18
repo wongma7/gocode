@@ -115,7 +115,26 @@ func (ti *tokenIterator) extractStructType() (res string) {
 	if !ti.prev() {
 		return ""
 	}
-	if ti.token().tok == token.RBRACE {
+
+	// A composite literal type must end with either "ident",
+	// "ident.ident", or "struct { ... }".
+	switch ti.token().tok {
+	case token.IDENT:
+		if !ti.prev() {
+			return ""
+		}
+		if ti.token().tok == token.PERIOD {
+			if !ti.prev() {
+				return ""
+			}
+			if ti.token().tok != token.IDENT {
+				return ""
+			}
+			if !ti.prev() {
+				return ""
+			}
+		}
+	case token.RBRACE:
 		ti.skipToBalancedPair()
 		if !ti.prev() {
 			return ""
@@ -123,25 +142,26 @@ func (ti *tokenIterator) extractStructType() (res string) {
 		if ti.token().tok != token.STRUCT {
 			return ""
 		}
-		return joinTokens(ti.tokens[ti.pos:origPos])
+		if !ti.prev() {
+			return ""
+		}
 	}
-	if ti.token().tok != token.IDENT {
-		return ""
+
+	// Continuing backwards, we might see "[]", "[...]", "[expr]",
+	// or "map[T]".
+	for ti.token().tok == token.RBRACK {
+		ti.skipToBalancedPair()
+		if !ti.prev() {
+			return ""
+		}
+		if ti.token().tok == token.MAP {
+			if !ti.prev() {
+				return ""
+			}
+		}
 	}
-	b := ti.token().String()
-	if !ti.prev() {
-		return b
-	}
-	if ti.token().tok != token.PERIOD {
-		return b
-	}
-	if !ti.prev() {
-		return b
-	}
-	if ti.token().tok != token.IDENT {
-		return b
-	}
-	return ti.token().String() + "." + b
+
+	return joinTokens(ti.tokens[ti.pos+1 : origPos])
 }
 
 // Starting from the token under the cursor move back and extract something
