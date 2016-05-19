@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"go/build"
@@ -155,20 +154,5 @@ func prepareFilenameDataCursor() (string, []byte, int) {
 		}
 	}
 
-	trimmed := trimShebangLine(file)
-	cursor -= len(file) - len(trimmed)
-	return filename, trimmed, cursor
-}
-
-// trimShebangLine returns s without the leading shebang line ("#!"
-// directive), if any.
-func trimShebangLine(s []byte) []byte {
-	if !bytes.HasPrefix(s, []byte("#!")) {
-		return s
-	}
-	nl := bytes.IndexByte(s, '\n')
-	if nl < 0 {
-		return nil
-	}
-	return s[nl+1:]
+	return filename, file, cursor
 }
