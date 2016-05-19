@@ -14,18 +14,20 @@ import (
 // intended, so use a lock to protect against concurrent accesses.
 var buildDefaultLock sync.Mutex
 
-var stdImporter = importerpkg.Default().(types.ImporterFrom)
-
 // importer implements types.ImporterFrom and provides transparent
 // support for gb-based projects.
 type importer struct {
-	ctx     *PackedContext
-	gbroot  string
-	gbpaths []string
+	underlying types.ImporterFrom
+	ctx        *PackedContext
+	gbroot     string
+	gbpaths    []string
 }
 
 func New(ctx *PackedContext, filename string) types.ImporterFrom {
-	imp := &importer{ctx: ctx}
+	imp := &importer{
+		ctx:        ctx,
+		underlying: importerpkg.Default().(types.ImporterFrom),
+	}
 
 	slashed := filepath.ToSlash(filename)
 	i := strings.LastIndex(slashed, "/vendor/src/")
@@ -77,7 +79,7 @@ func (i *importer) ImportFrom(path, srcDir string, mode types.ImportMode) (*type
 	def.SplitPathList = i.splitPathList
 	def.JoinPath = i.joinPath
 
-	return stdImporter.ImportFrom(path, srcDir, mode)
+	return i.underlying.ImportFrom(path, srcDir, mode)
 }
 
 func (i *importer) splitPathList(list string) []string {
