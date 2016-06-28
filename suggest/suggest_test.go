@@ -2,69 +2,65 @@ package suggest_test
 
 import (
 	"bytes"
-	"flag"
 	"go/importer"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mdempsky/gocode/suggest"
+	"github.com/mdempsky/gocode/suggest/internal/subtest"
 )
 
 func TestRegress(t *testing.T) {
-	s := suggest.New(testing.Verbose())
-
-	testDirs := flag.Args()
-	if len(testDirs) == 0 {
-		var err error
-		testDirs, err = filepath.Glob("testdata/test.*")
-		if err != nil {
-			t.Fatal(err)
-		}
+	testDirs, err := filepath.Glob("testdata/test.*")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	failed := 0
 	for _, testDir := range testDirs {
-		if !testRegress(t, s, testDir) {
-			failed++
-		}
-	}
-	if failed != 0 {
-		t.Errorf("%d failed / %d total", failed, len(testDirs))
+		testDir := testDir // capture
+		subtest.RunParallel(t, strings.TrimPrefix(testDir, "testdata/"), func(t *testing.T) {
+			testRegress(t, testDir)
+		})
 	}
 }
 
-func testRegress(t *testing.T, s *suggest.Suggester, testDir string) bool {
+func testRegress(t *testing.T, testDir string) {
 	testDir, err := filepath.Abs(testDir)
 	if err != nil {
 		t.Errorf("Abs failed: %v", err)
-		return false
+		return
 	}
 
 	filename := filepath.Join(testDir, "test.go.in")
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		t.Errorf("ReadFile failed: %v", err)
-		return false
+		return
 	}
 
 	cursor := bytes.IndexByte(data, '@')
 	if cursor < 0 {
 		t.Errorf("Missing @")
-		return false
+		return
 	}
 	data = append(data[:cursor], data[cursor+1:]...)
 
-	candidates, prefixLen := s.Suggest(importer.Default(), filename, data, cursor)
+	cfg := suggest.Config{
+		Importer: importer.Default(),
+	}
+	if testing.Verbose() {
+		cfg.Logf = t.Logf
+	}
+	candidates, prefixLen := cfg.Suggest(filename, data, cursor)
 
 	var out bytes.Buffer
 	suggest.NiceFormat(&out, candidates, prefixLen)
 
-	want, err := ioutil.ReadFile(filepath.Join(testDir, "out.expected"))
+	want, _ := ioutil.ReadFile(filepath.Join(testDir, "out.expected"))
 	if got := out.Bytes(); !bytes.Equal(got, want) {
 		t.Errorf("%s:\nGot:\n%s\nWant:\n%s\n", testDir, got, want)
-		return false
+		return
 	}
-
-	return true
 }

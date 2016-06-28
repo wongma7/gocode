@@ -17,24 +17,19 @@ import (
 	"github.com/mdempsky/gocode/lookdot"
 )
 
-type Suggester struct {
-	debug bool
-}
-
-func New(debug bool) *Suggester {
-	return &Suggester{
-		debug: debug,
-	}
+type Config struct {
+	Importer types.Importer
+	Logf     func(fmt string, args ...interface{})
 }
 
 // Suggest returns a list of suggestion candidates and the length of
 // the text that should be replaced, if any.
-func (c *Suggester) Suggest(importer types.Importer, filename string, data []byte, cursor int) ([]Candidate, int) {
+func (c *Config) Suggest(filename string, data []byte, cursor int) ([]Candidate, int) {
 	if cursor < 0 {
 		return nil, 0
 	}
 
-	fset, pos, pkg := c.analyzePackage(importer, filename, data, cursor)
+	fset, pos, pkg := c.analyzePackage(filename, data, cursor)
 	scope := pkg.Scope().Innermost(pos)
 
 	ctx, expr, partial := deduceCursorContext(data, cursor)
@@ -80,7 +75,7 @@ func (c *Suggester) Suggest(importer types.Importer, filename string, data []byt
 	return res, len(partial)
 }
 
-func (c *Suggester) analyzePackage(importer types.Importer, filename string, data []byte, cursor int) (*token.FileSet, token.Pos, *types.Package) {
+func (c *Config) analyzePackage(filename string, data []byte, cursor int) (*token.FileSet, token.Pos, *types.Package) {
 	// If we're in trailing white space at the end of a scope,
 	// sometimes go/types doesn't recognize that variables should
 	// still be in scope there.
@@ -88,25 +83,27 @@ func (c *Suggester) analyzePackage(importer types.Importer, filename string, dat
 
 	fset := token.NewFileSet()
 	fileAST, err := parser.ParseFile(fset, filename, filesemi, parser.AllErrors)
-	if err != nil && c.debug {
-		logParseError("Error parsing input file (outer block)", err)
+	if err != nil {
+		c.logParseError("Error parsing input file (outer block)", err)
 	}
 	pos := fset.File(fileAST.Pos()).Pos(cursor)
 
 	var otherASTs []*ast.File
 	for _, otherName := range c.findOtherPackageFiles(filename, fileAST.Name.Name) {
 		ast, err := parser.ParseFile(fset, otherName, nil, 0)
-		if err != nil && c.debug {
-			logParseError("Error parsing other file", err)
+		if err != nil {
+			c.logParseError("Error parsing other file", err)
 		}
 		otherASTs = append(otherASTs, ast)
 	}
 
-	var cfg types.Config
-	cfg.Importer = importer
-	cfg.Error = func(err error) {}
-	var info types.Info
-	info.Scopes = make(map[ast.Node]*types.Scope)
+	cfg := types.Config{
+		Importer: c.Importer,
+		Error:    func(err error) {},
+	}
+	info := types.Info{
+		Scopes: make(map[ast.Node]*types.Scope),
+	}
 	pkg, _ := cfg.Check("", fset, append(otherASTs, fileAST), &info)
 
 	// Workaround golang.org/issue/15686.
@@ -137,18 +134,18 @@ func setScopePos(v *types.Var, pos token.Pos) {
 	*(*token.Pos)(unsafe.Pointer(uintptr(unsafe.Pointer(v)) + varScopePosOffset)) = pos
 }
 
-func (c *Suggester) fieldNameCandidates(typ types.Type, b *candidateCollector) {
+func (c *Config) fieldNameCandidates(typ types.Type, b *candidateCollector) {
 	s := typ.Underlying().(*types.Struct)
 	for i, n := 0, s.NumFields(); i < n; i++ {
 		b.appendObject(s.Field(i))
 	}
 }
 
-func (c *Suggester) packageCandidates(pkg *types.Package, b *candidateCollector) {
+func (c *Config) packageCandidates(pkg *types.Package, b *candidateCollector) {
 	c.scopeCandidates(pkg.Scope(), token.NoPos, b)
 }
 
-func (c *Suggester) scopeCandidates(scope *types.Scope, pos token.Pos, b *candidateCollector) {
+func (c *Config) scopeCandidates(scope *types.Scope, pos token.Pos, b *candidateCollector) {
 	seen := make(map[string]bool)
 	for scope != nil {
 		isPkgScope := scope.Parent() == types.Universe
@@ -167,18 +164,21 @@ func (c *Suggester) scopeCandidates(scope *types.Scope, pos token.Pos, b *candid
 	}
 }
 
-func logParseError(intro string, err error) {
+func (c *Config) logParseError(intro string, err error) {
+	if c.Logf == nil {
+		return
+	}
 	if el, ok := err.(scanner.ErrorList); ok {
-		log.Printf("%s:", intro)
+		c.Logf("%s:", intro)
 		for _, er := range el {
-			log.Printf(" %s", er)
+			c.Logf(" %s", er)
 		}
 	} else {
-		log.Printf("%s: %s", intro, err)
+		c.Logf("%s: %s", intro, err)
 	}
 }
 
-func (c *Suggester) findOtherPackageFiles(filename, pkgName string) []string {
+func (c *Config) findOtherPackageFiles(filename, pkgName string) []string {
 	if filename == "" {
 		return nil
 	}

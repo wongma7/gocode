@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"go/types"
 	"log"
 	"net"
 	"net/rpc"
@@ -85,8 +84,13 @@ func (s *Server) AutoComplete(req *AutoCompleteRequest, res *AutoCompleteReply) 
 		log.Println("-------------------------------------------------------")
 	}
 	now := time.Now()
-	var imp types.Importer = gbimporter.New(&req.Context, req.Filename)
-	candidates, d := suggest.New(*g_debug).Suggest(imp, req.Filename, req.Data, req.Cursor)
+	cfg := suggest.Config{
+		Importer: gbimporter.New(&req.Context, req.Filename),
+	}
+	if *g_debug {
+		cfg.Logf = log.Printf
+	}
+	candidates, d := cfg.Suggest(req.Filename, req.Data, req.Cursor)
 	elapsed := time.Since(now)
 	if *g_debug {
 		log.Printf("Elapsed duration: %v\n", elapsed)
