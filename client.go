@@ -25,6 +25,21 @@ func doClient() {
 		}()
 	}
 
+	var command string
+	if flag.NArg() > 0 {
+		command = flag.Arg(0)
+		switch command {
+		case "autocomplete", "exit":
+			// these are valid commands
+		case "close":
+			// "close" is an alias for "exit"
+			command = "exit"
+		default:
+			fmt.Printf("gocode: unknown subcommand: %q\nRun 'gocode -help' for usage.\n", command)
+			os.Exit(2)
+		}
+	}
+
 	addr := *g_addr
 	if *g_sock == "unix" {
 		addr = getSocketPath()
@@ -33,30 +48,29 @@ func doClient() {
 	// client
 	client, err := rpc.Dial(*g_sock, addr)
 	if err != nil {
-		if *g_sock == "unix" && fileExists(addr) {
-			os.Remove(addr)
+		if command == "exit" {
+			log.Fatal(err)
 		}
 
+		if *g_sock == "unix" {
+			_ = os.Remove(addr)
+		}
 		err = tryStartServer()
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to start server: %s\n", err)
 		}
 		client, err = tryToConnect(*g_sock, addr)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to connect to %q: %s\n", addr, err)
 		}
 	}
 	defer client.Close()
 
-	if flag.NArg() > 0 {
-		switch flag.Arg(0) {
-		case "autocomplete":
-			cmdAutoComplete(client)
-		case "close", "exit":
-			cmdExit(client)
-		default:
-			fmt.Printf("gocode: unknown subcommand: %q\nRun 'gocode -help' for usage.\n", flag.Arg(0))
-		}
+	switch command {
+	case "autocomplete":
+		cmdAutoComplete(client)
+	case "exit":
+		cmdExit(client)
 	}
 }
 
@@ -120,7 +134,7 @@ func cmdExit(c *rpc.Client) {
 	var req ExitRequest
 	var res ExitReply
 	if err := c.Call("Server.Exit", &req, &res); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -135,7 +149,7 @@ func prepareFilenameDataCursor() (string, []byte, int) {
 	}
 
 	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 
 	filename := *g_input
