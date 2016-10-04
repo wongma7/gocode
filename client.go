@@ -12,11 +12,17 @@ import (
 	"strconv"
 	"time"
 
+	"runtime/debug"
+
 	"github.com/mdempsky/gocode/gbimporter"
 	"github.com/mdempsky/gocode/suggest"
 )
 
 func doClient() {
+	// Client is a short-lived program.
+	// Disable GC to make it faster
+	debug.SetGCPercent(-1)
+
 	if *g_debug {
 		start := time.Now()
 		defer func() {
