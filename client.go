@@ -17,6 +17,14 @@ import (
 )
 
 func doClient() {
+	if *g_debug {
+		start := time.Now()
+		defer func() {
+			elapsed := time.Since(start)
+			log.Printf("Elapsed duration: %v\n", elapsed)
+		}()
+	}
+
 	addr := *g_addr
 	if *g_sock == "unix" {
 		addr = getSocketPath()
