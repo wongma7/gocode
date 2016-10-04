@@ -40,31 +40,35 @@ func doClient() {
 		}
 	}
 
-	addr := *g_addr
-	if *g_sock == "unix" {
-		addr = getSocketPath()
-	}
-
 	// client
-	client, err := rpc.Dial(*g_sock, addr)
-	if err != nil {
-		if command == "exit" {
-			log.Fatal(err)
+	var client *rpc.Client
+	if *g_sock != "none" {
+		addr := *g_addr
+		if *g_sock == "unix" {
+			addr = getSocketPath()
 		}
 
-		if *g_sock == "unix" {
-			_ = os.Remove(addr)
-		}
-		err = tryStartServer()
+		var err error
+		client, err = rpc.Dial(*g_sock, addr)
 		if err != nil {
-			log.Fatalf("Failed to start server: %s\n", err)
+			if command == "exit" {
+				log.Fatal(err)
+			}
+
+			if *g_sock == "unix" {
+				_ = os.Remove(addr)
+			}
+			err = tryStartServer()
+			if err != nil {
+				log.Fatalf("Failed to start server: %s\n", err)
+			}
+			client, err = tryToConnect(*g_sock, addr)
+			if err != nil {
+				log.Fatalf("Failed to connect to %q: %s\n", addr, err)
+			}
 		}
-		client, err = tryToConnect(*g_sock, addr)
-		if err != nil {
-			log.Fatalf("Failed to connect to %q: %s\n", addr, err)
-		}
+		defer client.Close()
 	}
-	defer client.Close()
 
 	switch command {
 	case "autocomplete":
@@ -119,8 +123,15 @@ func cmdAutoComplete(c *rpc.Client) {
 	req.Context = gbimporter.PackContext(&build.Default)
 
 	var res AutoCompleteReply
-	if err := c.Call("Server.AutoComplete", &req, &res); err != nil {
-		panic(err)
+	var err error
+	if c == nil {
+		s := Server{}
+		err = s.AutoComplete(&req, &res)
+	} else {
+		err = c.Call("Server.AutoComplete", &req, &res)
+	}
+	if err != nil {
+		log.Fatal(err)
 	}
 
 	fmt := suggest.Formatters[*g_format]
@@ -131,6 +142,9 @@ func cmdAutoComplete(c *rpc.Client) {
 }
 
 func cmdExit(c *rpc.Client) {
+	if c == nil {
+		return
+	}
 	var req ExitRequest
 	var res ExitReply
 	if err := c.Call("Server.Exit", &req, &res); err != nil {
