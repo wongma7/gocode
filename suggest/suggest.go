@@ -8,11 +8,8 @@ import (
 	"go/token"
 	"go/types"
 	"io/ioutil"
-	"log"
 	"path/filepath"
-	"reflect"
 	"strings"
-	"unsafe"
 
 	"github.com/mdempsky/gocode/lookdot"
 )
@@ -106,32 +103,7 @@ func (c *Config) analyzePackage(filename string, data []byte, cursor int) (*toke
 	}
 	pkg, _ := cfg.Check("", fset, append(otherASTs, fileAST), &info)
 
-	// Workaround golang.org/issue/15686.
-	for node, scope := range info.Scopes {
-		switch node := node.(type) {
-		case *ast.RangeStmt:
-			for _, name := range scope.Names() {
-				setScopePos(scope.Lookup(name).(*types.Var), node.X.End())
-			}
-		}
-	}
-
 	return fset, pos, pkg
-}
-
-var varScopePosOffset = func() uintptr {
-	sf, ok := reflect.TypeOf((*types.Var)(nil)).Elem().FieldByName("scopePos_")
-	if !ok {
-		log.Fatal("types.Var has no field scopePos_")
-	}
-	if sf.Type != reflect.TypeOf(token.NoPos) {
-		log.Fatalf("types.Var.scopePos_ has type %v, not token.Pos", sf.Type)
-	}
-	return sf.Offset
-}()
-
-func setScopePos(v *types.Var, pos token.Pos) {
-	*(*token.Pos)(unsafe.Pointer(uintptr(unsafe.Pointer(v)) + varScopePosOffset)) = pos
 }
 
 func (c *Config) fieldNameCandidates(typ types.Type, b *candidateCollector) {
@@ -148,17 +120,15 @@ func (c *Config) packageCandidates(pkg *types.Package, b *candidateCollector) {
 func (c *Config) scopeCandidates(scope *types.Scope, pos token.Pos, b *candidateCollector) {
 	seen := make(map[string]bool)
 	for scope != nil {
-		isPkgScope := scope.Parent() == types.Universe
 		for _, name := range scope.Names() {
 			if seen[name] {
 				continue
 			}
-			obj := scope.Lookup(name)
-			if !isPkgScope && obj.Pos() > pos {
-				continue
-			}
 			seen[name] = true
-			b.appendObject(obj)
+			_, obj := scope.LookupParent(name, pos)
+			if obj != nil {
+				b.appendObject(obj)
+			}
 		}
 		scope = scope.Parent()
 	}
