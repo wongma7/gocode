@@ -39,6 +39,9 @@ func New(ctx *PackedContext, filename string) types.ImporterFrom {
 
 		gbroot := filepath.FromSlash(slashed[:i])
 		gbvendor := filepath.Join(gbroot, "vendor")
+		if gbroot == imp.ctx.GOROOT {
+			goto Found
+		}
 		for _, path := range paths {
 			if path == gbroot || path == gbvendor {
 				goto Found
