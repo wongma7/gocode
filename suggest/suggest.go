@@ -27,6 +27,9 @@ func (c *Config) Suggest(filename string, data []byte, cursor int) ([]Candidate,
 	}
 
 	fset, pos, pkg := c.analyzePackage(filename, data, cursor)
+	if pkg == nil {
+		return nil, 0
+	}
 	scope := pkg.Scope().Innermost(pos)
 
 	ctx, expr, partial := deduceCursorContext(data, cursor)
@@ -83,7 +86,11 @@ func (c *Config) analyzePackage(filename string, data []byte, cursor int) (*toke
 	if err != nil {
 		c.logParseError("Error parsing input file (outer block)", err)
 	}
-	pos := fset.File(fileAST.Pos()).Pos(cursor)
+	astPos := fileAST.Pos()
+	if astPos == 0 {
+		return nil, token.NoPos, nil
+	}
+	pos := fset.File(astPos).Pos(cursor)
 
 	var otherASTs []*ast.File
 	for _, otherName := range c.findOtherPackageFiles(filename, fileAST.Name.Name) {
