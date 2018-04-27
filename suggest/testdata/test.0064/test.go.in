@@ -1,0 +1,11 @@
+package main
+
+type S struct {
+	*T
+}
+
+func (s *S) DoSomething() {
+	if s.@
+}
+
+type T int
