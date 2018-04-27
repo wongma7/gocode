@@ -68,9 +68,10 @@ var tests = [...]struct {
 	{"*T1", []string{"t1", "t2"}},
 	{"T1", []string{"t2"}},
 
-	// golang.org/issue/15721
+	// golang.org/issue/9060
 	{"error", []string{"Error"}},
-	{"struct { error }", nil},
+	{"struct { error }", []string{"Error"}},
+	{"interface { error }", []string{"Error"}},
 
 	// golang.org/issue/15722
 	{"P", nil},

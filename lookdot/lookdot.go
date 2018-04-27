@@ -7,13 +7,7 @@ type Visitor func(obj types.Object)
 func Walk(tv *types.TypeAndValue, v Visitor) bool {
 	switch {
 	case tv.IsType():
-		// Anonymous types may have methods too (e.g.,
-		// interfaces or structs with embedded fields), but
-		// the Go spec restricts method expressions to named
-		// types and pointers to named types.
-		if namedOf(tv.Type) != nil {
-			walk(tv.Type, false, false, v)
-		}
+		walk(tv.Type, false, false, v)
 	case tv.IsValue():
 		walk(tv.Type, tv.Addressable(), true, v)
 	default:
