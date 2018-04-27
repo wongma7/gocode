@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/mdempsky/gocode/suggest"
-	"github.com/mdempsky/gocode/suggest/internal/subtest"
 )
 
 func TestRegress(t *testing.T) {
@@ -20,7 +19,9 @@ func TestRegress(t *testing.T) {
 
 	for _, testDir := range testDirs {
 		testDir := testDir // capture
-		subtest.RunParallel(t, strings.TrimPrefix(testDir, "testdata/"), func(t *testing.T) {
+		name := strings.TrimPrefix(testDir, "testdata/")
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			testRegress(t, testDir)
 		})
 	}
