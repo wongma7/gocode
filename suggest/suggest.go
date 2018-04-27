@@ -105,10 +105,7 @@ func (c *Config) analyzePackage(filename string, data []byte, cursor int) (*toke
 		Importer: c.Importer,
 		Error:    func(err error) {},
 	}
-	info := types.Info{
-		Scopes: make(map[ast.Node]*types.Scope),
-	}
-	pkg, _ := cfg.Check("", fset, append(otherASTs, fileAST), &info)
+	pkg, _ := cfg.Check("", fset, append(otherASTs, fileAST), nil)
 
 	return fset, pos, pkg
 }
