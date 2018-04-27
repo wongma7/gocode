@@ -135,7 +135,7 @@ class Gocode(sublime_plugin.EventListener):
 		result = []
 		for line in filter(bool, out.split("\n")):
 			arg = line.split(",,")
-			hint, subj = hint_and_subj(*arg)
+			hint, subj = hint_and_subj(arg[0], arg[1], arg[2])
 			result.append([hint, subj])
 
 		return (result, sublime.INHIBIT_WORD_COMPLETIONS)
