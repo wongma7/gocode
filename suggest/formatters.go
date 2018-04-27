@@ -8,12 +8,13 @@ import (
 type Formatter func(w io.Writer, candidates []Candidate, num int)
 
 var Formatters = map[string]Formatter{
-	"csv":   csvFormat,
-	"emacs": emacsFormat,
-	"godit": goditFormat,
-	"json":  jsonFormat,
-	"nice":  NiceFormat,
-	"vim":   vimFormat,
+	"csv":              csvFormat,
+	"csv-with-package": csvFormat,
+	"emacs":            emacsFormat,
+	"godit":            goditFormat,
+	"json":             jsonFormat,
+	"nice":             NiceFormat,
+	"vim":              vimFormat,
 }
 
 func NiceFormat(w io.Writer, candidates []Candidate, num int) {
@@ -71,7 +72,7 @@ func emacsFormat(w io.Writer, candidates []Candidate, num int) {
 
 func csvFormat(w io.Writer, candidates []Candidate, num int) {
 	for _, c := range candidates {
-		fmt.Fprintf(w, "%s,,%s,,%s\n", c.Class, c.Name, c.Type)
+		fmt.Fprintf(w, "%s,,%s,,%s,,%s\n", c.Class, c.Name, c.Type, c.PkgPath)
 	}
 }
 
@@ -86,8 +87,8 @@ func jsonFormat(w io.Writer, candidates []Candidate, num int) {
 		if i != 0 {
 			fmt.Fprintf(w, ", ")
 		}
-		fmt.Fprintf(w, `{"class": "%s", "name": "%s", "type": "%s"}`,
-			c.Class, c.Name, c.Type)
+		fmt.Fprintf(w, `{"class": "%s", "name": "%s", "type": "%s", "package": "%s"}`,
+			c.Class, c.Name, c.Type, c.PkgPath)
 	}
 	fmt.Fprint(w, "]]")
 }

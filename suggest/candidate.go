@@ -8,9 +8,10 @@ import (
 )
 
 type Candidate struct {
-	Class string
-	Name  string
-	Type  string
+	Class   string
+	PkgPath string
+	Name    string
+	Type    string
 }
 
 func (c Candidate) Suggestion() string {
@@ -121,9 +122,10 @@ func (b *candidateCollector) asCandidate(obj types.Object) Candidate {
 	}
 
 	return Candidate{
-		Class: objClass,
-		Name:  obj.Name(),
-		Type:  typStr,
+		Class:   objClass,
+		PkgPath: obj.Pkg().Path(),
+		Name:    obj.Name(),
+		Type:    typStr,
 	}
 }
 
