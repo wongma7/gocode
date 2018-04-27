@@ -8,10 +8,10 @@ import (
 )
 
 type Candidate struct {
-	Class   string
-	PkgPath string
-	Name    string
-	Type    string
+	Class   string `json:"class"`
+	PkgPath string `json:"package"`
+	Name    string `json:"name"`
+	Type    string `json:"type"`
 }
 
 func (c Candidate) Suggestion() string {

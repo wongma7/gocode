@@ -1,6 +1,7 @@
 package suggest
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -77,18 +78,9 @@ func csvFormat(w io.Writer, candidates []Candidate, num int) {
 }
 
 func jsonFormat(w io.Writer, candidates []Candidate, num int) {
-	if candidates == nil {
-		fmt.Fprint(w, "[]")
-		return
+	var x []interface{}
+	if candidates != nil {
+		x = []interface{}{num, candidates}
 	}
-
-	fmt.Fprintf(w, `[%d, [`, num)
-	for i, c := range candidates {
-		if i != 0 {
-			fmt.Fprintf(w, ", ")
-		}
-		fmt.Fprintf(w, `{"class": "%s", "name": "%s", "type": "%s", "package": "%s"}`,
-			c.Class, c.Name, c.Type, c.PkgPath)
-	}
-	fmt.Fprint(w, "]]")
+	json.NewEncoder(w).Encode(x)
 }

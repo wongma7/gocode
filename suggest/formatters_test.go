@@ -52,7 +52,8 @@ func TestFormatters(t *testing.T) {
 		name string
 		want string
 	}{
-		{"json", `[6, [{"class": "func", "name": "client_auto_complete", "type": "func(cli *rpc.Client, Arg0 []byte, Arg1 string, Arg2 int, Arg3 gocode_env) (c []candidate, d int)", "package": "gocode"}, {"class": "func", "name": "client_close", "type": "func(cli *rpc.Client, Arg0 int) int", "package": "gocode"}, {"class": "func", "name": "client_cursor_type_pkg", "type": "func(cli *rpc.Client, Arg0 []byte, Arg1 string, Arg2 int) (typ, pkg string)", "package": "gocode"}, {"class": "func", "name": "client_drop_cache", "type": "func(cli *rpc.Client, Arg0 int) int", "package": "gocode"}, {"class": "func", "name": "client_highlight", "type": "func(cli *rpc.Client, Arg0 []byte, Arg1 string, Arg2 gocode_env) (c []highlight_range, d int)", "package": "gocode"}, {"class": "func", "name": "client_set", "type": "func(cli *rpc.Client, Arg0, Arg1 string) string", "package": "gocode"}, {"class": "func", "name": "client_status", "type": "func(cli *rpc.Client, Arg0 int) string", "package": "gocode"}]]`},
+		{"json", `[6,[{"class":"func","package":"gocode","name":"client_auto_complete","type":"func(cli *rpc.Client, Arg0 []byte, Arg1 string, Arg2 int, Arg3 gocode_env) (c []candidate, d int)"},{"class":"func","package":"gocode","name":"client_close","type":"func(cli *rpc.Client, Arg0 int) int"},{"class":"func","package":"gocode","name":"client_cursor_type_pkg","type":"func(cli *rpc.Client, Arg0 []byte, Arg1 string, Arg2 int) (typ, pkg string)"},{"class":"func","package":"gocode","name":"client_drop_cache","type":"func(cli *rpc.Client, Arg0 int) int"},{"class":"func","package":"gocode","name":"client_highlight","type":"func(cli *rpc.Client, Arg0 []byte, Arg1 string, Arg2 gocode_env) (c []highlight_range, d int)"},{"class":"func","package":"gocode","name":"client_set","type":"func(cli *rpc.Client, Arg0, Arg1 string) string"},{"class":"func","package":"gocode","name":"client_status","type":"func(cli *rpc.Client, Arg0 int) string"}]]
+`},
 		{"nice", `Found 7 candidates:
   func client_auto_complete(cli *rpc.Client, Arg0 []byte, Arg1 string, Arg2 int, Arg3 gocode_env) (c []candidate, d int)
   func client_close(cli *rpc.Client, Arg0 int) int
@@ -97,7 +98,7 @@ func,,client_status,,func(cli *rpc.Client, Arg0 int) string,,gocode
 		suggest.Formatters[test.name](&out, candidates, num)
 
 		if got := out.String(); got != test.want {
-			t.Errorf("Format %s:\nGot:\n%s\nWant:\n%s\n", test.name, got, test.want)
+			t.Errorf("Format %s:\nGot:\n%q\nWant:\n%q\n", test.name, got, test.want)
 		}
 	}
 }
