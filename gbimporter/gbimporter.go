@@ -3,7 +3,6 @@ package gbimporter
 import (
 	"fmt"
 	"go/build"
-	importerpkg "go/importer"
 	"go/types"
 	"path/filepath"
 	"strings"
@@ -23,10 +22,10 @@ type importer struct {
 	gbpaths    []string
 }
 
-func New(ctx *PackedContext, filename string) types.ImporterFrom {
+func New(ctx *PackedContext, filename string, underlying types.ImporterFrom) types.ImporterFrom {
 	imp := &importer{
 		ctx:        ctx,
-		underlying: importerpkg.Default().(types.ImporterFrom),
+		underlying: underlying,
 	}
 
 	slashed := filepath.ToSlash(filename)

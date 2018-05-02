@@ -127,6 +127,7 @@ func cmdAutoComplete(c *rpc.Client) {
 	var req AutoCompleteRequest
 	req.Filename, req.Data, req.Cursor = prepareFilenameDataCursor()
 	req.Context = gbimporter.PackContext(&build.Default)
+	req.Source = *g_source
 
 	var res AutoCompleteReply
 	var err error
