@@ -141,6 +141,20 @@ If you're a MacOSX user, you may find that script useful: https://github.com/pur
   (exec-path-from-shell-copy-env "GOPATH"))
 ```
 
+### Sublime Text 3 setup
+
+A plugin for Sublime Text 3 is provided in the `subl3` directory of this repository. To install it:
+
+ 1. Copy the plugin into your Sublime Text 3 `Packages` directory:
+
+		$ cp -r $GOPATH/src/github.com/mdempsky/gocode/subl3 ~/.config/sublime-text-3/Packages/
+
+ 2. Rename the plugin directory from `subl3` to `gocode`:
+
+		$ mv ~/.config/sublime-text-3/Packages/subl3 ~/.config/sublime-text-3/Packages/gocode
+
+ 3. Open the Command Pallete (`Ctrl+Shift+P`) and run the `Package Control: List Packages` command. You should see `gocode` listed as an active plugin.
+
 ### Debugging
 
 If something went wrong, the first thing you may want to do is manually start the gocode daemon with a debug mode enabled and in a separate terminal window. It will show you all the stack traces, panics if any and additional info about autocompletion requests. Shutdown the daemon if it was already started and run a new one explicitly with a debug mode enabled:
