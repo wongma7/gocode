@@ -2,8 +2,10 @@ package suggest_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"go/importer"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -53,6 +55,15 @@ func testRegress(t *testing.T, testDir string) {
 	}
 	if testing.Verbose() {
 		cfg.Logf = t.Logf
+	}
+	if cfgJSON, err := os.Open(filepath.Join(testDir, "config.json")); err == nil {
+		if err := json.NewDecoder(cfgJSON).Decode(&cfg); err != nil {
+			t.Errorf("Decode failed: %v", err)
+			return
+		}
+	} else if !os.IsNotExist(err) {
+		t.Errorf("Open failed: %v", err)
+		return
 	}
 	candidates, prefixLen := cfg.Suggest(filename, data, cursor)
 

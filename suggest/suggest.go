@@ -17,6 +17,7 @@ import (
 type Config struct {
 	Importer types.Importer
 	Logf     func(fmt string, args ...interface{})
+	Builtin  bool
 }
 
 // Suggest returns a list of suggestion candidates and the length of
@@ -37,6 +38,7 @@ func (c *Config) Suggest(filename string, data []byte, cursor int) ([]Candidate,
 		localpkg: pkg,
 		partial:  partial,
 		filter:   objectFilters[partial],
+		builtin:  c.Builtin,
 	}
 
 	switch ctx {

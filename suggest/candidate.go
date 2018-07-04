@@ -81,6 +81,7 @@ type candidateCollector struct {
 	localpkg   *types.Package
 	partial    string
 	filter     objectFilter
+	builtin    bool
 }
 
 func (b *candidateCollector) getCandidates() []Candidate {
@@ -166,12 +167,9 @@ func (b *candidateCollector) qualify(pkg *types.Package) string {
 }
 
 func (b *candidateCollector) appendObject(obj types.Object) {
-	// TODO(mdempsky): Change this to true.
-	const proposeBuiltins = false
-
 	if obj.Pkg() != b.localpkg {
 		if obj.Parent() == types.Universe {
-			if !proposeBuiltins {
+			if !b.builtin {
 				return
 			}
 		} else if !obj.Exported() {

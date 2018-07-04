@@ -57,6 +57,7 @@ type AutoCompleteRequest struct {
 	Cursor   int
 	Context  gbimporter.PackedContext
 	Source   bool
+	Builtin  bool
 }
 
 type AutoCompleteReply struct {
@@ -95,6 +96,7 @@ func (s *Server) AutoComplete(req *AutoCompleteRequest, res *AutoCompleteReply) 
 	}
 	cfg := suggest.Config{
 		Importer: gbimporter.New(&req.Context, req.Filename, underlying),
+		Builtin:  req.Builtin,
 	}
 	if *g_debug {
 		cfg.Logf = log.Printf
