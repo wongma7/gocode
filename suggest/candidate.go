@@ -121,9 +121,14 @@ func (b *candidateCollector) asCandidate(obj types.Object) Candidate {
 		}
 	}
 
+	path := "builtin"
+	if pkg := obj.Pkg(); pkg != nil {
+		path = pkg.Path()
+	}
+
 	return Candidate{
 		Class:   objClass,
-		PkgPath: obj.Pkg().Path(),
+		PkgPath: path,
 		Name:    obj.Name(),
 		Type:    typStr,
 	}
