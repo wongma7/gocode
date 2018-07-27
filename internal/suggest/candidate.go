@@ -75,7 +75,6 @@ func classifyObject(obj types.Object) string {
 }
 
 type candidateCollector struct {
-	candidates []Candidate
 	exact      []types.Object
 	badcase    []types.Object
 	localpkg   *types.Package
@@ -90,7 +89,7 @@ func (b *candidateCollector) getCandidates() []Candidate {
 		objs = b.badcase
 	}
 
-	res := b.candidates
+	var res []Candidate
 	for _, obj := range objs {
 		res = append(res, b.asCandidate(obj))
 	}
