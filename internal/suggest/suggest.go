@@ -81,6 +81,9 @@ func (c *Config) analyzePackage(filename string, data []byte, cursor int) (*toke
 	// If we're in trailing white space at the end of a scope,
 	// sometimes go/types doesn't recognize that variables should
 	// still be in scope there.
+	if cursor > len(data) {
+		return nil, token.NoPos, nil
+	}
 	filesemi := bytes.Join([][]byte{data[:cursor], []byte(";"), data[cursor:]}, nil)
 
 	fset := token.NewFileSet()
